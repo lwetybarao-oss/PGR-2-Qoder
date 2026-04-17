@@ -11,6 +11,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Credenciais inválidas' }, { status: 401 });
     }
 
+    // Verificar se Supabase está configurado
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('ERRO: Variáveis Supabase não configuradas no servidor');
+      return NextResponse.json({ error: 'Configuração do servidor incompleta', debug: 'SUPABASE env vars missing' }, { status: 500 });
+    }
+
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
@@ -18,7 +24,12 @@ export async function POST(request: NextRequest) {
       .eq('ativo', true)
       .single();
 
-    if (error || !user) {
+    if (error) {
+      console.error('Supabase query error:', error);
+      return NextResponse.json({ error: 'Credenciais inválidas', debug: error.message }, { status: 401 });
+    }
+
+    if (!user) {
       return NextResponse.json({ error: 'Credenciais inválidas' }, { status: 401 });
     }
 
@@ -34,15 +45,18 @@ export async function POST(request: NextRequest) {
     });
     response.cookies.set('pgr_session', user.id, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/'
     });
 
     return response;
   } catch (error) {
     console.error('Login error:', error);
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'Erro desconhecido';
+    const stack = error instanceof Error ? error.stack : '';
+    return NextResponse.json({ error: 'Erro interno do servidor', debug: msg, stack: stack?.split('\n').slice(0, 3) }, { status: 500 });
   }
 }
 

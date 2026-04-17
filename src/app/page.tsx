@@ -423,6 +423,7 @@ function LoginView({ onLogin, onBack, onForgotPassword }: { onLogin: (user: User
       } else {
         const data = await res.json();
         setError(data.error || 'Erro ao fazer login');
+        if (data.debug) console.error('Login debug:', data.debug, data.stack);
       }
     } catch {
       setError('Erro de conexão com o servidor');
