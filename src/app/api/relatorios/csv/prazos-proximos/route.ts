@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { addDays, diffDays, todayNormalized } from '@/lib/prazos';
+import { addDays, diffDays, todayNormalized, classificarUrgencia } from '@/lib/prazos';
 
 function formatDatePt(date: Date): string {
   return date.toLocaleDateString('pt-BR');
@@ -25,25 +25,36 @@ export async function GET() {
       const detDate = new Date(a.data_detencao);
       const fim1 = addDays(detDate, 90);
       const dias1 = diffDays(today, fim1);
+      const status1 = classificarUrgencia(dias1);
 
       let fim2Str = '';
       let dias2Str = '';
-
-      let status = 'Normal';
-      if (dias1 < 0) status = 'Vencido';
-      else if (dias1 <= 7) status = 'Alerta';
+      let status = status1;
 
       if (a.data_prorrogacao) {
         const fim2 = addDays(new Date(a.data_prorrogacao), 90);
         const dias2 = diffDays(today, fim2);
+        const status2 = classificarUrgencia(dias2);
         fim2Str = formatDatePt(fim2);
         dias2Str = String(dias2);
 
-        if (dias2 < 0) status = 'Vencido';
-        else if (dias2 <= 7) status = 'Alerta';
+        // Usar o pior status entre os dois prazos
+        const prioridade: Record<string, number> = { normal: 0, alerta: 1, critico: 2, vencido: 3 };
+        if ((prioridade[status2] || 0) > (prioridade[status] || 0)) {
+          status = status2;
+        }
       }
 
-      if (dias1 <= 14 || (a.data_prorrogacao && diffDays(today, addDays(new Date(a.data_prorrogacao), 90)) <= 14)) {
+      // Incluir se o pior status não é "normal" (ou seja, <= 7 dias ou vencido)
+      if (status !== 'normal') {
+        let statusLabel: string;
+        switch (status) {
+          case 'vencido': statusLabel = 'Vencido'; break;
+          case 'critico': statusLabel = 'Crítico'; break;
+          case 'alerta': statusLabel = 'Alerta'; break;
+          default: statusLabel = 'Normal';
+        }
+
         rows.push([
           a.numero_processo,
           a.nome_arguido,
@@ -54,7 +65,7 @@ export async function GET() {
           String(dias1),
           fim2Str,
           dias2Str,
-          status
+          statusLabel
         ]);
       }
     }

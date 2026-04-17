@@ -9,6 +9,54 @@ export async function GET(request: NextRequest) {
     const lido = searchParams.get('lido') || '';
     const q = searchParams.get('q') || '';
 
+    // ============================================
+    // STATS: Calculados em tempo real a partir da tabela arguidos
+    // (mesma lógica do Dashboard para garantir consistência)
+    // ============================================
+    const today = todayNormalized();
+
+    const { data: allArguidos, error: argError } = await supabase
+      .from('arguidos')
+      .select('*')
+      .eq('ativo', true);
+
+    if (argError) throw argError;
+
+    let liveTotal = 0;
+    let liveVencidos = 0;
+    let liveCriticos = 0;
+    let liveAlertas = 0;
+    let liveNormal = 0;
+
+    for (const a of (allArguidos || [])) {
+      const detDate = new Date(a.data_detencao);
+      const dias1 = diffDays(today, addDays(detDate, 90));
+
+      let dias2: number | null = null;
+      if (a.data_prorrogacao) {
+        dias2 = diffDays(today, addDays(new Date(a.data_prorrogacao), 90));
+      }
+
+      const status1 = classificarUrgencia(dias1);
+      const status2 = dias2 !== null ? classificarUrgencia(dias2) : null;
+
+      // Usar o pior status entre os dois prazos
+      const prioridade: Record<string, number> = { normal: 0, alerta: 1, critico: 2, vencido: 3 };
+      const p1 = prioridade[status1] || 0;
+      const p2 = status2 ? (prioridade[status2] || 0) : -1;
+      const pior = Math.max(p1, p2);
+
+      liveTotal++;
+
+      if (pior >= 3) liveVencidos++;
+      else if (pior >= 2) liveCriticos++;
+      else if (pior >= 1) liveAlertas++;
+      else liveNormal++;
+    }
+
+    // ============================================
+    // LISTA: Registros da tabela alerta_prazos
+    // ============================================
     let query = supabase
       .from('alerta_prazos')
       .select('*, arguido:arguidos(id, nome_arguido, numero_processo, data_detencao, data_prorrogacao)')
@@ -26,8 +74,6 @@ export async function GET(request: NextRequest) {
 
     const { data: alertas, error } = await query;
     if (error) throw error;
-
-    const today = todayNormalized();
 
     const alertasWithUrgency = (alertas || []).map((a: any) => {
       let dias: number | null = null;
@@ -67,18 +113,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Stats calculados em tempo real (iguais ao Dashboard)
     const stats = {
-      total: filtered.length,
+      total: liveTotal,
+      vencidos: liveVencidos,
+      criticos: liveCriticos,
+      alertas: liveAlertas,
+      normal: liveNormal,
       naoLidos: filtered.filter((a: any) => !a.lido).length,
       lidos: filtered.filter((a: any) => a.lido).length,
-      vencidos: filtered.filter((a: any) => a.urgencia === 'vencido').length,
-      criticos: filtered.filter((a: any) => a.urgencia === 'critico').length,
     };
 
     return NextResponse.json({ data: filtered, stats });
   } catch (error: any) {
     console.error('Error fetching alertas:', error);
-    return NextResponse.json({ error: 'Erro ao buscar alertas' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao buscar alertas', details: error.message }, { status: 500 });
   }
 }
 
@@ -97,10 +146,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
+    return NextResponse.json({ error: 'Acção inválida' }, { status: 400 });
   } catch (error: any) {
     console.error('Error updating alertas:', error);
-    return NextResponse.json({ error: 'Erro ao atualizar alertas' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao atualizar alertas', details: error.message }, { status: 500 });
   }
 }
 
@@ -123,6 +172,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting alertas:', error);
-    return NextResponse.json({ error: 'Erro ao remover alertas' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao remover alertas', details: error.message }, { status: 500 });
   }
 }

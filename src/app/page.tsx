@@ -1979,7 +1979,7 @@ function ArguidoDetailView({
 
 function AlertasView() {
   const [alertas, setAlertas] = useState<AlertaPrazo[]>([]);
-  const [stats, setStats] = useState({ total: 0, naoLidos: 0, lidos: 0, vencidos: 0 });
+  const [stats, setStats] = useState({ total: 0, vencidos: 0, criticos: 0, alertas: 0, normal: 0, naoLidos: 0, lidos: 0 });
   const [loading, setLoading] = useState(true);
   const [tipoFilter, setTipoFilter] = useState('');
   const [lidoFilter, setLidoFilter] = useState('');
@@ -2062,12 +2062,13 @@ function AlertasView() {
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">Alertas de Prazos</h2>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="border-gray-200"><CardContent className="p-3 text-center"><p className="text-xs text-gray-500">Total</p><p className="text-lg font-bold">{stats.total}</p></CardContent></Card>
-        <Card className="border-gray-200 bg-amber-50"><CardContent className="p-3 text-center"><p className="text-xs text-amber-600">Não Lidos</p><p className="text-lg font-bold text-amber-700">{stats.naoLidos}</p></CardContent></Card>
-        <Card className="border-gray-200 bg-green-50"><CardContent className="p-3 text-center"><p className="text-xs text-green-600">Lidos</p><p className="text-lg font-bold text-green-700">{stats.lidos}</p></CardContent></Card>
+      {/* Stats - calculados em tempo real a partir dos arguidos */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card className="border-gray-200"><CardContent className="p-3 text-center"><p className="text-xs text-gray-500">Total Arguidos</p><p className="text-lg font-bold">{stats.total}</p></CardContent></Card>
         <Card className="border-gray-200 bg-red-50"><CardContent className="p-3 text-center"><p className="text-xs text-red-600">Vencidos</p><p className="text-lg font-bold text-red-700">{stats.vencidos}</p></CardContent></Card>
+        <Card className="border-gray-200 bg-orange-50"><CardContent className="p-3 text-center"><p className="text-xs text-orange-600">Críticos</p><p className="text-lg font-bold text-orange-700">{stats.criticos}</p></CardContent></Card>
+        <Card className="border-gray-200 bg-amber-50"><CardContent className="p-3 text-center"><p className="text-xs text-amber-600">Alerta</p><p className="text-lg font-bold text-amber-700">{stats.alertas}</p></CardContent></Card>
+        <Card className="border-gray-200 bg-green-50"><CardContent className="p-3 text-center"><p className="text-xs text-green-600">Normal</p><p className="text-lg font-bold text-green-700">{stats.normal}</p></CardContent></Card>
       </div>
 
       {/* Filters */}

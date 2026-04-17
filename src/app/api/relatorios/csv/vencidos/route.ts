@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase, toCamelCase } from '@/lib/supabase';
-import { addDays, diffDays, todayNormalized } from '@/lib/prazos';
+import { addDays, diffDays, todayNormalized, classificarUrgencia, calcPrazos } from '@/lib/prazos';
 
 function formatDatePt(date: Date): string {
   return date.toLocaleDateString('pt-BR');
@@ -22,21 +22,23 @@ export async function GET() {
     rows.push(['Nº Processo', 'Nome', 'Crime', 'Magistrado', 'Data Detenção', 'Fim 1º Prazo', 'Dias Vencidos 1º', 'Fim 2º Prazo', 'Dias Vencidos 2º']);
 
     for (const a of (arguidos || [])) {
-      const detDate = new Date(a.data_detencao);
-      const fim1 = addDays(detDate, 90);
-      const dias1 = diffDays(today, fim1);
+      const calc = calcPrazos(toCamelCase(a));
 
-      if (dias1 < 0 || (a.data_prorrogacao && diffDays(today, addDays(new Date(a.data_prorrogacao), 90)) < 0)) {
-        let dias2Str = '';
+      // Incluir se qualquer prazo está vencido (dias < 0)
+      const vencido1 = calc.diasRestantes1 < 0;
+      const vencido2 = calc.diasRestantes2 !== null && calc.diasRestantes2 < 0;
+
+      if (vencido1 || vencido2) {
+        const detDate = new Date(a.data_detencao);
+        const fim1 = addDays(detDate, 90);
+
         let fim2Str = '';
+        let dias2Str = '';
 
-        if (a.data_prorrogacao) {
+        if (a.data_prorrogacao && vencido2) {
           const fim2 = addDays(new Date(a.data_prorrogacao), 90);
-          const dias2 = diffDays(today, fim2);
-          if (dias2 < 0) {
-            fim2Str = formatDatePt(fim2);
-            dias2Str = String(Math.abs(dias2));
-          }
+          fim2Str = formatDatePt(fim2);
+          dias2Str = String(Math.abs(calc.diasRestantes2!));
         }
 
         rows.push([
@@ -45,8 +47,8 @@ export async function GET() {
           a.crime,
           a.magistrado_responsavel,
           formatDatePt(detDate),
-          dias1 < 0 ? formatDatePt(fim1) : '',
-          dias1 < 0 ? String(Math.abs(dias1)) : '',
+          vencido1 ? formatDatePt(fim1) : '',
+          vencido1 ? String(Math.abs(calc.diasRestantes1)) : '',
           fim2Str,
           dias2Str
         ]);
