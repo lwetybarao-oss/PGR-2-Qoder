@@ -3,6 +3,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
+import { db } from '@/lib/db';
 
 const execFileAsync = promisify(execFile);
 
@@ -17,12 +18,29 @@ export async function GET(
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
     }
 
+    // Fetch arguido name for the filename
+    let arguidoNome = 'arguido';
+    try {
+      const arguido = await db.arguido.findUnique({
+        where: { id },
+        select: { nomeArguido: true },
+      });
+      if (arguido) {
+        arguidoNome = arguido.nomeArguido
+          .toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_|_$/g, '');
+      }
+    } catch {
+      // fallback to generic name
+    }
+
     // Ensure output directory exists
     const outputDir = path.join(process.cwd(), 'download');
     await fs.mkdir(outputDir, { recursive: true });
 
-    // Generate a unique filename
-    const filename = `ficha_${id}_${Date.now()}.pdf`;
+    const filename = `ficha_${arguidoNome}.pdf`;
     const outputPath = path.join(outputDir, filename);
 
     // Call the Python script
@@ -52,12 +70,12 @@ export async function GET(
       // ignore cleanup errors
     }
 
-    // Return PDF with appropriate headers
+    // Return PDF with arguido name in filename
     return new NextResponse(pdfBuffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="ficha_arguido.pdf"`,
+        'Content-Disposition': `inline; filename="ficha_${arguidoNome}.pdf"`,
       },
     });
   } catch (error) {
