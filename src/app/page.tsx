@@ -30,6 +30,7 @@ import {
   LayoutDashboard,
   Users,
   Bell,
+  BellRing,
   FileText,
   LogOut,
   Plus,
@@ -46,6 +47,9 @@ import {
   Shield,
   CalendarClock,
   UserCircle,
+  Smartphone,
+  WifiOff,
+  X,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -2001,6 +2005,163 @@ export default function Home() {
   const [alertCount, setAlertCount] = useState(0);
   const { toast } = useToast();
 
+  // PWA State
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+
+  // PWA: Capture install prompt
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      setShowInstallBanner(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+
+    // Check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+    }
+
+    // Online/offline detection
+    setIsOnline(navigator.onLine);
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+
+    // Check notification permission
+    if ('Notification' in window) {
+      setNotifPermission(Notification.permission);
+    }
+
+    // Check existing push subscription
+    checkPushSubscription();
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
+  // PWA: Install app
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setIsInstalled(true);
+      toast({ title: 'Aplicação instalada com sucesso!' });
+    }
+    setInstallPrompt(null);
+    setShowInstallBanner(false);
+  };
+
+  // PWA: Request notification permission
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) {
+      toast({ title: 'Notificações não suportadas neste navegador', variant: 'destructive' });
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    setNotifPermission(permission);
+    if (permission === 'granted') {
+      toast({ title: 'Notificações activadas!' });
+      await subscribeToPush();
+    }
+  };
+
+  // PWA: Subscribe to push notifications
+  const subscribeToPush = async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      if (!registration) return;
+
+      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!publicKey) return;
+
+      // Convert base64 to Uint8Array
+      const base64 = publicKey.replace(/-/g, '+').replace(/_/g, '/');
+      const padding = '='.repeat((4 - base64.length % 4) % 4);
+      const base64Padded = base64 + padding;
+      const rawData = atob(base64Padded);
+      const keyArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; i++) {
+        keyArray[i] = rawData.charCodeAt(i);
+      }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: keyArray,
+      });
+
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          endpoint: subscription.endpoint,
+          keys: subscription.toJSON().keys,
+        }),
+      });
+
+      setPushSubscribed(true);
+    } catch (err) {
+      console.error('Push subscription error:', err);
+    }
+  };
+
+  // Check existing push subscription
+  const checkPushSubscription = async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      if (!registration) return;
+      const sub = await registration.pushManager.getSubscription();
+      setPushSubscribed(!!sub);
+    } catch {
+      // Service worker not ready
+    }
+  };
+
+  // PWA: Send test notification (for development)
+  const sendTestNotification = async () => {
+    if (notifPermission !== 'granted') {
+      await requestNotificationPermission();
+      return;
+    }
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      if (!registration) return;
+
+      const sub = await registration.pushManager.getSubscription();
+      if (!sub) {
+        await subscribeToPush();
+        return;
+      }
+
+      await fetch('/api/push/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptions: [sub.toJSON()],
+          notification: {
+            title: 'PGR - Teste de Notificação',
+            body: 'As notificações estão a funcionar correctamente.',
+            urgency: 'normal',
+            url: '/?view=dashboard',
+          },
+        }),
+      });
+      toast({ title: 'Notificação de teste enviada!' });
+    } catch (err) {
+      console.error('Test notification error:', err);
+    }
+  };
+
   // Check session on mount
   useEffect(() => {
     fetch('/api/auth/login')
@@ -2106,6 +2267,37 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Offline banner */}
+      {!isOnline && (
+        <div className="bg-red-600 text-white text-xs text-center py-1.5 px-3 flex items-center justify-center gap-2">
+          <WifiOff className="w-3 h-3" />
+          Modo offline - Dados podem estar desactualizados
+        </div>
+      )}
+
+      {/* PWA Install banner */}
+      {showInstallBanner && !isInstalled && user && (
+        <div className="bg-[#1e3a5f] text-white text-sm px-4 py-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Smartphone className="w-4 h-4 text-[#F9A601] flex-shrink-0" />
+            <span>Instale esta aplicação no seu dispositivo para acesso rápido.</span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={handleInstall}
+              className="bg-[#F9A601] text-[#1e3a5f] text-xs font-semibold px-3 py-1 rounded hover:bg-[#FA812A]"
+            >
+              Instalar
+            </button>
+            <button
+              onClick={() => setShowInstallBanner(false)}
+              className="text-white/70 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
       <Navbar
         user={user}
         currentView={view}
@@ -2146,6 +2338,37 @@ export default function Home() {
       </main>
 
       <Footer />
+
+      {/* PWA: Notification permission prompt (shows once after login) */}
+      {user && notifPermission === 'default' && (
+        <div className="fixed bottom-4 right-4 z-50 max-w-xs">
+          <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="bg-amber-100 rounded-full p-2 flex-shrink-0">
+                <BellRing className="w-4 h-4 text-amber-700" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900">Activar Notificações</p>
+                <p className="text-xs text-gray-500 mt-0.5">Receba alertas de prazos mesmo quando a aplicação estiver fechada.</p>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={requestNotificationPermission}
+                    className="bg-[#F9A601] hover:bg-[#FA812A] text-white text-xs font-medium px-3 py-1.5 rounded"
+                  >
+                    Activar
+                  </button>
+                  <button
+                    onClick={() => setNotifPermission('denied')}
+                    className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5"
+                  >
+                    Agora não
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -159,3 +159,34 @@ Stage Summary:
 - Button available in every row of "Arguidos em Prisao Preventiva" table
 - Uses Calibri fonts, minimal gold accents, clean professional design
 - All status/alertas properly color-coded
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: PWA installable + Push Notifications
+
+Work Log:
+- Generated 8 PWA icons (72-512px) + apple-touch-icon + favicon from Angola emblem
+- Created manifest.json with full PWA config (name, icons, shortcuts, standalone mode)
+- Created Service Worker (sw.js) with:
+  - Offline caching: Network-first for API/pages, Cache-first for static assets
+  - Pre-caching of critical assets on install
+  - Background sync for alert verification
+  - Push notification handling with urgency-based vibration
+  - Notification click routing to alertas view
+- Generated VAPID keys for Web Push Protocol
+- Created /api/push/subscribe route (subscription management)
+- Created /api/push/notify route (send push notifications)
+- Updated layout.tsx with PWA meta tags (manifest, theme-color, apple-mobile-web-app, icons)
+- Updated page.tsx with:
+  - PWA install banner (appears after login)
+  - Offline detection banner (red bar when disconnected)
+  - Notification permission prompt (bottom-right popup)
+  - Push subscription management
+  - Test notification sending capability
+
+Stage Summary:
+- App is now fully installable as PWA on all platforms (Android, iOS, Windows, macOS)
+- Offline mode: pages and API responses cached, offline banner shown
+- Push notifications: VAPID-based, urgency-aware (vencido=critical vibration)
+- Build passes with 2 new API routes (/api/push/subscribe, /api/push/notify)
