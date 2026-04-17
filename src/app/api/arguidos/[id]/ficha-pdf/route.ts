@@ -181,10 +181,10 @@ export async function GET(
     doc.setFontSize(10);
 
     const prazoFields = [
-      ['1o Prazo (Fim)', formatDatePT(a.fim1Prazo)],
-      ['Dias Restantes (1o)', a.diasRestantes1 !== null ? String(a.diasRestantes1) : '-'],
-      ['2o Prazo (Fim)', formatDatePT(a.fim2Prazo)],
-      ['Dias Restantes (2o)', a.diasRestantes2 !== null ? String(a.diasRestantes2) : '-'],
+      ['1.\u00ba Prazo (Fim)', formatDatePT(a.fim1Prazo)],
+      ['Dias Restantes (1.\u00ba)', a.diasRestantes1 !== null ? String(a.diasRestantes1) : '-'],
+      ['2.\u00ba Prazo (Fim)', formatDatePT(a.fim2Prazo)],
+      ['Dias Restantes (2.\u00ba)', a.diasRestantes2 !== null ? String(a.diasRestantes2) : '-'],
       ['Status do Prazo', statusLabels[a.statusPrazo] || a.statusPrazo],
     ];
 
