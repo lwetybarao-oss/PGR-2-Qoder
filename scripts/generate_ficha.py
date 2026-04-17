@@ -329,36 +329,36 @@ def generate_ficha_pdf(arguido_data, output_path):
     # ========== HEADER ==========
     emblem_path = '/home/z/my-project/public/angola-emblem.png'
     if os.path.exists(emblem_path):
-        emblem = Image(emblem_path, width=22 * mm, height=22 * mm)
+        emblem = Image(emblem_path, width=30 * mm, height=34 * mm)
     else:
         emblem = Paragraph('', styles['FieldValue'])
 
+    # Emblem centered above text
+    emblem_row = Table([[emblem]], colWidths=[CONTENT_W], rowHeights=[36 * mm])
+    emblem_row.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    elements.append(emblem_row)
+
+    # Text centered below emblem
     header_texts = [
         Paragraph('REPUBLICA DE ANGOLA', styles['HeaderRepublic']),
         Paragraph('PROCURADORIA-GERAL DA REPUBLICA', styles['HeaderPGR']),
         Paragraph('PGR-Lunda-Sul', styles['HeaderProvince']),
     ]
-    text_block = Table([[h] for h in header_texts], colWidths=[CONTENT_W - 30 * mm])
+    text_block = Table([[h] for h in header_texts], colWidths=[CONTENT_W])
     text_block.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (0, 0), 2),
+        ('TOPPADDING', (0, 0), (0, 0), 0),
         ('BOTTOMPADDING', (-1, -1), (-1, -1), 0),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
-
-    header_table = Table(
-        [[emblem, text_block]],
-        colWidths=[26 * mm, CONTENT_W - 26 * mm], rowHeights=[24 * mm],
-    )
-    header_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (0, 0), 2),
-        ('LEFTPADDING', (1, 0), (1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
-    elements.append(header_table)
+    elements.append(text_block)
     elements.append(Spacer(1, 2 * mm))
     elements.append(HRFlowable(width='100%', thickness=1.5, color=GOLD, spaceAfter=2 * mm, spaceBefore=0))
     elements.append(Spacer(1, 2 * mm))
