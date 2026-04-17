@@ -422,8 +422,8 @@ function LoginView({ onLogin, onBack, onForgotPassword }: { onLogin: (user: User
         toast({ title: 'Sessão iniciada com sucesso' });
       } else {
         const data = await res.json();
-        setError(data.error || 'Erro ao fazer login');
-        if (data.debug) console.error('Login debug:', data.debug, data.stack);
+        const errMsg = data.debug ? `${data.error} [${data.debug}]` : (data.error || 'Erro ao fazer login');
+        setError(errMsg);
       }
     } catch {
       setError('Erro de conexão com o servidor');
