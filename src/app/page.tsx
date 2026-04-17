@@ -2181,7 +2181,7 @@ function RelatoriosView() {
           <Card className="border-gray-200">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Arguidos com Prazos Próximos (≤14 dias)</CardTitle>
+                <CardTitle className="text-base">Arguidos com Prazos Próximos</CardTitle>
                 <Button size="sm" variant="outline" onClick={() => downloadCSV('/api/relatorios/csv/prazos-proximos', 'prazos-proximos.csv')} className="text-xs">
                   <Download className="w-3.5 h-3.5 mr-1" /> CSV
                 </Button>
