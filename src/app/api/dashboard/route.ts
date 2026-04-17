@@ -14,8 +14,10 @@ export async function GET() {
 
     if (error) throw error;
 
-    let prazosVencidos = 0;
-    let alertasCriticos = 0;
+    let totalVencidos = 0;
+    let totalCriticos = 0;
+    let totalAlertas = 0;
+    let totalNormal = 0;
     let totalProrrogados = 0;
 
     const crimesStats: Record<string, number> = {};
@@ -33,11 +35,16 @@ export async function GET() {
       const status1 = classificarUrgencia(dias1);
       const status2 = dias2 !== null ? classificarUrgencia(dias2) : null;
 
-      if (status1 === 'vencido' || status2 === 'vencido') {
-        prazosVencidos++;
-      } else if (status1 === 'critico' || status1 === 'alerta' || status2 === 'critico' || status2 === 'alerta') {
-        alertasCriticos++;
-      }
+      // Usar o pior status entre os dois prazos (mesma lógica do Alertas)
+      const prioridade: Record<string, number> = { normal: 0, alerta: 1, critico: 2, vencido: 3 };
+      const p1 = prioridade[status1] || 0;
+      const p2 = status2 ? (prioridade[status2] || 0) : -1;
+      const pior = Math.max(p1, p2);
+
+      if (pior >= 3) totalVencidos++;
+      else if (pior >= 2) totalCriticos++;
+      else if (pior >= 1) totalAlertas++;
+      else totalNormal++;
 
       crimesStats[a.crime] = (crimesStats[a.crime] || 0) + 1;
     }
@@ -58,8 +65,10 @@ export async function GET() {
     return NextResponse.json({
       totalArguidos: arguidos?.length || 0,
       totalProrrogados,
-      alertasCriticos,
-      prazosVencidos,
+      prazosVencidos: totalVencidos,
+      prazosCriticos: totalCriticos,
+      prazosAlertas: totalAlertas,
+      prazosNormal: totalNormal,
       crimesStats: crimesArray,
       recentArguidos,
       recentAlertas: (recentAlertas || []).map((a: any) => toCamelCase(a)),
