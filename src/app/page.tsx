@@ -2269,11 +2269,11 @@ function RelatorioContent({ tipo }: { tipo: string }) {
               <TableHead className="text-xs">Nome</TableHead>
               <TableHead className="text-xs hidden md:table-cell">Crime</TableHead>
               <TableHead className="text-xs hidden lg:table-cell">Magistrado</TableHead>
-              {tipo !== 'geral' && <TableHead className="text-xs">Detencao</TableHead>}
-              <TableHead className="text-xs">Fim 1o Prazo</TableHead>
-              <TableHead className="text-xs">Dias 1o</TableHead>
-              <TableHead className="text-xs">Fim 2o Prazo</TableHead>
-              <TableHead className="text-xs">Dias 2o</TableHead>
+              {tipo !== 'geral' && <TableHead className="text-xs">Detenção</TableHead>}
+              <TableHead className="text-xs">Fim 1º Prazo</TableHead>
+              <TableHead className="text-xs">Dias 1º</TableHead>
+              <TableHead className="text-xs">Fim 2º Prazo</TableHead>
+              <TableHead className="text-xs">Dias 2º</TableHead>
               <TableHead className="text-xs">Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -2426,7 +2426,7 @@ function ArguidoDetailModal({
               </div>
             ) : !data ? (
               <div className="flex items-center justify-center py-16">
-                <div className="text-gray-400">Arguido nao encontrado.</div>
+                <div className="text-gray-400">Arguido não encontrado.</div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -2436,10 +2436,10 @@ function ArguidoDetailModal({
                     <CardContent className="p-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs font-medium opacity-70">1o Prazo (90 dias)</p>
+                          <p className="text-xs font-medium opacity-70">1º Prazo (90 dias)</p>
                           <p className="text-base font-bold mt-1">
                             {data.diasRestantes1 < 0
-                              ? `Vencido ha ${Math.abs(data.diasRestantes1)} dia(s)`
+                              ? `Vencido há ${Math.abs(data.diasRestantes1)} dia(s)`
                               : data.diasRestantes1 === 0
                               ? 'Vence hoje!'
                               : `${data.diasRestantes1} dia(s) restantes`}
@@ -2455,10 +2455,10 @@ function ArguidoDetailModal({
                       <CardContent className="p-3">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-xs font-medium opacity-70">2o Prazo (90 dias)</p>
+                            <p className="text-xs font-medium opacity-70">2º Prazo (90 dias)</p>
                             <p className="text-base font-bold mt-1">
                               {data.diasRestantes2 < 0
-                                ? `Vencido ha ${Math.abs(data.diasRestantes2)} dia(s)`
+                                ? `Vencido há ${Math.abs(data.diasRestantes2)} dia(s)`
                                 : data.diasRestantes2 === 0
                                 ? 'Vence hoje!'
                                 : `${data.diasRestantes2} dia(s) restantes`}
@@ -2473,7 +2473,7 @@ function ArguidoDetailModal({
                     <Card className="border border-gray-200 bg-gray-50">
                       <CardContent className="p-3">
                         <div className="flex items-center justify-center h-full">
-                          <p className="text-xs text-gray-400">2o Prazo nao definido</p>
+                          <p className="text-xs text-gray-400">2º Prazo não definido</p>
                         </div>
                       </CardContent>
                     </Card>
@@ -2482,10 +2482,10 @@ function ArguidoDetailModal({
 
                 {/* Detail Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Identificacao */}
+                  {/* Identificação */}
                   <Card className="border-gray-100">
                     <CardHeader className="pb-2 px-4 pt-3">
-                      <CardTitle className="text-sm font-semibold text-gray-700">Identificacao</CardTitle>
+                      <CardTitle className="text-sm font-semibold text-gray-700">Identificação</CardTitle>
                     </CardHeader>
                     <CardContent className="px-4 pb-3 pt-0">
                       <dl className="space-y-2">
@@ -2500,22 +2500,22 @@ function ArguidoDetailModal({
                         </div>
                         <Separator />
                         <div className="flex justify-between text-sm">
-                          <dt className="text-gray-500">Filiacao (Pai)</dt>
+                          <dt className="text-gray-500">Filiação (Pai)</dt>
                           <dd className="text-gray-700">{data.filiacaoPai || '-'}</dd>
                         </div>
                         <Separator />
                         <div className="flex justify-between text-sm">
-                          <dt className="text-gray-500">Filiacao (Mae)</dt>
+                          <dt className="text-gray-500">Filiação (Mãe)</dt>
                           <dd className="text-gray-700">{data.filiacaoMae || '-'}</dd>
                         </div>
                       </dl>
                     </CardContent>
                   </Card>
 
-                  {/* Informacoes Juridicas */}
+                  {/* Informações Jurídicas */}
                   <Card className="border-gray-100">
                     <CardHeader className="pb-2 px-4 pt-3">
-                      <CardTitle className="text-sm font-semibold text-gray-700">Informacoes Juridicas</CardTitle>
+                      <CardTitle className="text-sm font-semibold text-gray-700">Informações Jurídicas</CardTitle>
                     </CardHeader>
                     <CardContent className="px-4 pb-3 pt-0">
                       <dl className="space-y-2">
@@ -2545,7 +2545,7 @@ function ArguidoDetailModal({
                     <CardContent className="px-4 pb-3 pt-0">
                       <dl className="space-y-2">
                         <div className="flex justify-between text-sm">
-                          <dt className="text-gray-500">Data de Detencao</dt>
+                          <dt className="text-gray-500">Data de Detenção</dt>
                           <dd className="font-medium text-gray-900">{formatDate(data.dataDetencao)}</dd>
                         </div>
                         <Separator />
@@ -2562,10 +2562,10 @@ function ArguidoDetailModal({
                     </CardContent>
                   </Card>
 
-                  {/* Gestao de Prazos */}
+                  {/* Gestão de Prazos */}
                   <Card className="border-gray-100">
                     <CardHeader className="pb-2 px-4 pt-3">
-                      <CardTitle className="text-sm font-semibold text-gray-700">Gestao de Prazos</CardTitle>
+                      <CardTitle className="text-sm font-semibold text-gray-700">Gestão de Prazos</CardTitle>
                     </CardHeader>
                     <CardContent className="px-4 pb-3 pt-0">
                       <dl className="space-y-2">
@@ -2575,12 +2575,12 @@ function ArguidoDetailModal({
                         </div>
                         <Separator />
                         <div className="flex justify-between text-sm">
-                          <dt className="text-gray-500">Data de Prorrogacao</dt>
+                          <dt className="text-gray-500">Data de Prorrogação</dt>
                           <dd className="text-gray-700">{formatDate(data.dataProrrogacao)}</dd>
                         </div>
                         <Separator />
                         <div className="flex justify-between text-sm">
-                          <dt className="text-gray-500">Remessa JG / Alteracao</dt>
+                          <dt className="text-gray-500">Remessa JG / Alteração</dt>
                           <dd className="text-gray-700">{formatDate(data.remessaJgAlteracao)}</dd>
                         </div>
                       </dl>
@@ -2588,11 +2588,11 @@ function ArguidoDetailModal({
                   </Card>
                 </div>
 
-                {/* Observacoes */}
+                {/* Observações */}
                 {(data.observacao1 || data.observacao2) && (
                   <Card className="border-gray-100">
                     <CardHeader className="pb-2 px-4 pt-3">
-                      <CardTitle className="text-sm font-semibold text-gray-700">Observacoes</CardTitle>
+                      <CardTitle className="text-sm font-semibold text-gray-700">Observações</CardTitle>
                     </CardHeader>
                     <CardContent className="px-4 pb-3 pt-0 space-y-2">
                       {data.observacao1 && <p className="text-sm text-gray-700">{data.observacao1}</p>}
@@ -2648,9 +2648,9 @@ function ArguidoDetailModal({
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar Remocao</DialogTitle>
+            <DialogTitle>Confirmar Remoção</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja remover o arguido <strong>{data?.nomeArguido}</strong>? Esta accao pode ser revertida por um administrador.
+              Tem certeza que deseja remover o arguido <strong>{data?.nomeArguido}</strong>? Esta ação pode ser revertida por um administrador.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
