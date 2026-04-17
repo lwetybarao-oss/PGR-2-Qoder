@@ -129,7 +129,7 @@ const CRIMES = [
   'Lesões Corporais Graves',
 ];
 
-type ViewType = 'login' | 'dashboard' | 'arguidos' | 'arguido-form' | 'arguido-detail' | 'alertas' | 'relatorios';
+type ViewType = 'landing' | 'pesquisa-publica' | 'login' | 'dashboard' | 'arguidos' | 'arguido-form' | 'arguido-detail' | 'alertas' | 'relatorios';
 
 // ============================================================
 // Helpers
@@ -183,10 +183,210 @@ function downloadCSV(url: string, filename: string) {
 }
 
 // ============================================================
+// Landing Page
+// ============================================================
+
+function LandingView({ onNavigate }: { onNavigate: (v: ViewType) => void }) {
+  return (
+    <div className="min-h-screen flex flex-col bg-[#1e3a5f] text-white">
+      {/* Header */}
+      <div className="text-center pt-8 pb-4 px-4 border-b-4 border-[#c9a227] bg-black/20">
+        <svg className="w-24 h-24 mx-auto mb-3" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M50 95 L50 20" stroke="#c9a227" strokeWidth="4" />
+          <path d="M35 95 L65 95" stroke="#c9a227" strokeWidth="5" strokeLinecap="round" />
+          <path d="M40 85 L60 85" stroke="#c9a227" strokeWidth="4" strokeLinecap="round" />
+          <path d="M20 30 L80 30" stroke="#c9a227" strokeWidth="4" strokeLinecap="round" />
+          <path d="M20 30 L15 50" stroke="#c9a227" strokeWidth="3" />
+          <path d="M20 30 L25 50" stroke="#c9a227" strokeWidth="3" />
+          <path d="M10 50 Q20 60 30 50" stroke="#c9a227" strokeWidth="3" fill="none" />
+          <path d="M80 30 L75 50" stroke="#c9a227" strokeWidth="3" />
+          <path d="M80 30 L85 50" stroke="#c9a227" strokeWidth="3" />
+          <path d="M70 50 Q80 60 90 50" stroke="#c9a227" strokeWidth="3" fill="none" />
+          <circle cx="50" cy="20" r="4" fill="#c9a227" />
+        </svg>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+        <div className="text-center max-w-3xl">
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-widest uppercase text-[#c9a227]">Republica de Angola</h2>
+          <div className="w-24 h-0.5 bg-[#c9a227] mx-auto my-4" />
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-wider uppercase">Procuradoria-Geral da Republica</h1>
+          <h3 className="text-base sm:text-lg mt-4 leading-relaxed opacity-95 border-t-2 border-[#c9a227]/50 pt-4">Sistema de Controlo de Arguidos em Prisao Preventiva</h3>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4 mt-8 w-full max-w-xl">
+          <button
+            onClick={() => onNavigate('login')}
+            className="flex-1 flex items-center justify-center gap-2 bg-[#c9a227] text-[#1e3a5f] font-semibold text-base px-6 py-3.5 rounded-lg border-3 border-[#c9a227] hover:bg-[#b8941f]"
+          >
+            <UserCircle className="w-5 h-5" />
+            Acessar Sistema
+          </button>
+          <button
+            onClick={() => onNavigate('pesquisa-publica')}
+            className="flex-1 flex items-center justify-center gap-2 bg-transparent text-white font-semibold text-base px-6 py-3.5 rounded-lg border-3 border-white hover:bg-white/10"
+          >
+            <Search className="w-5 h-5" />
+            Pesquisa Publica
+          </button>
+        </div>
+
+        <div className="mt-8 bg-white/5 backdrop-blur rounded-xl p-5 max-w-lg">
+          <p className="text-sm"><strong>Sistema Oficial</strong> da Procuradoria-Geral da Republica</p>
+          <p className="text-sm opacity-80">Gestao e controlo de processos de prisao preventiva</p>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-black/30 py-4 px-4 text-center border-t-2 border-[#c9a227]/50">
+        <p className="text-sm opacity-80">2026 Procuradoria-Geral da Republica - Republica de Angola</p>
+        <p className="text-sm opacity-60 mt-1">Todos os direitos reservados</p>
+        <div className="mt-2 pt-2 border-t border-white/10">
+          <p className="text-xs opacity-50">Acesso restrito a pessoal autorizado | Sistema protegido por legislacao de seguranca de dados</p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// ============================================================
+// Pesquisa Publica View
+// ============================================================
+
+function PesquisaPublicaView({ onBack }: { onBack: () => void }) {
+  const [query, setQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [results, setResults] = useState<Arguido[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+
+  const doSearch = async () => {
+    if (!query.trim()) return;
+    setLoading(true);
+    setSearched(true);
+    try {
+      const params = new URLSearchParams({ q: query.trim(), limit: '50' });
+      const res = await fetch(`/api/arguidos?${params}`);
+      if (res.ok) {
+        const json = await res.json();
+        setResults(json.data);
+      }
+    } catch {
+      console.error('Search failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') doSearch();
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#1e3a5f] text-white">
+      {/* Header */}
+      <div className="text-center pt-6 pb-3 px-4 border-b-4 border-[#c9a227] bg-black/20">
+        <h1 className="text-xl sm:text-2xl font-bold">Procuradoria-Geral da Republica</h1>
+        <h2 className="text-sm font-normal text-[#c9a227] tracking-widest uppercase">Republica de Angola</h2>
+        <div className="mt-2">
+          <button onClick={onBack} className="text-white/80 hover:text-white text-sm hover:underline">Voltar a Pagina Inicial</button>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 px-4 py-6 max-w-5xl mx-auto w-full">
+        {/* Search section */}
+        <div className="bg-white/5 backdrop-blur rounded-xl p-5 mb-6">
+          <h3 className="text-lg text-[#c9a227] text-center font-medium mb-4">Pesquisa de Processos</h3>
+          <div className="flex gap-2 max-w-2xl mx-auto">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Digite o nome do arguido ou numero do processo..."
+              className="flex-1 px-4 py-2.5 rounded bg-white/10 text-white placeholder-white/60 border-2 border-white/30 focus:outline-none focus:border-[#c9a227] text-sm"
+            />
+            <button
+              onClick={doSearch}
+              className="bg-[#c9a227] text-[#1e3a5f] font-semibold px-6 py-2.5 rounded text-sm hover:bg-[#b8941f] uppercase tracking-wide"
+            >
+              Pesquisar
+            </button>
+          </div>
+        </div>
+
+        {/* Results */}
+        {searched && (
+          <div className="bg-black/25 backdrop-blur rounded-xl p-5 border-2 border-[#c9a227]/30">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b-2 border-[#c9a227]/50">
+              <h4 className="text-[#c9a227] text-lg font-semibold">Resultados da Pesquisa</h4>
+              <span className="text-sm opacity-90">{results.length} resultado(s) encontrado(s)</span>
+            </div>
+            {loading ? (
+              <div className="text-center py-8 text-gray-400">A pesquisar...</div>
+            ) : results.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-xl mb-2 opacity-50">Nenhum resultado encontrado</p>
+                <p className="text-sm opacity-60">Tente pesquisar com outro termo</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-[#c9a227]/50 to-[#c9a227]/40">
+                      <th className="py-3 px-4 text-left text-xs font-bold uppercase tracking-wider">N. Processo</th>
+                      <th className="py-3 px-4 text-left text-xs font-bold uppercase tracking-wider">Nome do Arguido</th>
+                      <th className="py-3 px-4 text-left text-xs font-bold uppercase tracking-wider">Crime</th>
+                      <th className="py-3 px-4 text-left text-xs font-bold uppercase tracking-wider hidden sm:table-cell">Data Detencao</th>
+                      <th className="py-3 px-4 text-left text-xs font-bold uppercase tracking-wider hidden sm:table-cell">Prazo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.map(a => (
+                      <tr key={a.id} className="border-b border-white/20 hover:bg-white/10">
+                        <td className="py-3 px-4 text-sm font-bold text-[#FFD700]">{a.numeroProcesso}</td>
+                        <td className="py-3 px-4 text-sm">{a.nomeArguido}</td>
+                        <td className="py-3 px-4 text-sm">{a.crime}</td>
+                        <td className="py-3 px-4 text-sm hidden sm:table-cell">{formatDate(a.dataDetencao)}</td>
+                        <td className="py-3 px-4 hidden sm:table-cell">
+                          <StatusBadge status={a.statusPrazo} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!searched && (
+          <div className="text-center py-12">
+            <p className="text-lg opacity-80">Utilize o campo de pesquisa acima para consultar processos</p>
+            <p className="text-sm opacity-50">Pesquise pelo nome do arguido ou numero do processo</p>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-black/30 py-4 px-4 text-center border-t-2 border-[#c9a227]/50 mt-auto">
+        <p className="text-sm opacity-80">2026 Procuradoria-Geral da Republica - Republica de Angola</p>
+        <p className="text-sm opacity-60 mt-1">Todos os direitos reservados</p>
+        <div className="mt-2 pt-2 border-t border-white/10">
+          <p className="text-xs opacity-50">Acesso publico a informacoes resumidas | Dados protegidos por legislacao de seguranca</p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// ============================================================
 // Login View
 // ============================================================
 
-function LoginView({ onLogin }: { onLogin: (user: User) => void }) {
+function LoginView({ onLogin, onBack }: { onLogin: (user: User) => void; onBack: () => void }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
