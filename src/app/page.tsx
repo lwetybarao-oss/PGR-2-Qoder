@@ -497,9 +497,6 @@ function LoginView({ onLogin, onBack, onForgotPassword }: { onLogin: (user: User
                 Esqueceu a sua palavra-passe?
               </button>
             </div>
-            <div className="mt-3 text-center text-xs text-gray-400">
-              Credenciais de demonstração: admin / admin123
-            </div>
             <div className="mt-3 text-center">
               <button onClick={onBack} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
                 Voltar a pagina inicial
