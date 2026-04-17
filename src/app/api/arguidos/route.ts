@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, toCamelCaseArray } from '@/lib/supabase';
+import { supabase, toCamelCase } from '@/lib/supabase';
 import { calcPrazos, todayNormalized } from '@/lib/prazos';
 
 export async function GET(request: NextRequest) {
