@@ -50,6 +50,9 @@ import {
   Smartphone,
   WifiOff,
   X,
+  Mail,
+  KeyRound,
+  Lock,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -61,6 +64,8 @@ interface User {
   id: string;
   name: string | null;
   username: string;
+  email?: string;
+  role?: string;
 }
 
 interface Arguido {
@@ -133,7 +138,7 @@ const CRIMES = [
   'Lesões Corporais Graves',
 ];
 
-type ViewType = 'landing' | 'pesquisa-publica' | 'login' | 'dashboard' | 'arguidos' | 'arguido-form' | 'arguido-detail' | 'alertas' | 'relatorios';
+type ViewType = 'landing' | 'pesquisa-publica' | 'login' | 'dashboard' | 'arguidos' | 'arguido-form' | 'arguido-detail' | 'alertas' | 'relatorios' | 'forgot-password' | 'reset-password';
 
 // ============================================================
 // Helpers
@@ -392,7 +397,7 @@ function PesquisaPublicaView({ onBack }: { onBack: () => void }) {
 // Login View
 // ============================================================
 
-function LoginView({ onLogin, onBack }: { onLogin: (user: User) => void; onBack: () => void }) {
+function LoginView({ onLogin, onBack, onForgotPassword }: { onLogin: (user: User) => void; onBack: () => void; onForgotPassword: () => void }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -480,12 +485,264 @@ function LoginView({ onLogin, onBack }: { onLogin: (user: User) => void; onBack:
                 {loading ? 'A aguardar...' : 'Entrar'}
               </Button>
             </form>
-            <div className="mt-4 text-center text-xs text-gray-400">
+            <div className="mt-4 text-center">
+              <button
+                onClick={onForgotPassword}
+                className="text-sm text-[#F9A601] hover:text-[#FA812A] hover:underline font-medium"
+              >
+                Esqueceu a sua palavra-passe?
+              </button>
+            </div>
+            <div className="mt-3 text-center text-xs text-gray-400">
               Credenciais de demonstração: admin / admin123
             </div>
             <div className="mt-3 text-center">
               <button onClick={onBack} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
                 Voltar a pagina inicial
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Forgot Password View
+// ============================================================
+
+function ForgotPasswordView({ onBack, onGoToLogin }: { onBack: () => void; onGoToLogin: () => void }) {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      if (res.ok) {
+        setSent(true);
+        toast({ title: 'Pedido enviado! Verifique o seu email.' });
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Erro ao processar pedido');
+      }
+    } catch {
+      setError('Erro de conexão com o servidor');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#F9A601] rounded-lg mb-4">
+            <KeyRound className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Redefinir Senha</h1>
+          <p className="text-gray-500 mt-1">PGR - Sistema de Gestão de Arguidos</p>
+        </div>
+
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg text-center">Esqueceu a Palavra-passe?</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!sent ? (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded">{error}</div>
+                )}
+                <div className="bg-blue-50 border border-blue-200 text-blue-700 text-sm p-3 rounded">
+                  <p>Introduza o seu email e receberá um link para redefinir a sua palavra-passe.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="seu.email@exemplo.com"
+                      required
+                      className="pl-10 h-10"
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full bg-[#F9A601] hover:bg-[#FA812A] text-white font-medium h-10"
+                  disabled={loading}
+                >
+                  {loading ? 'A enviar...' : 'Enviar Link de Redefinição'}
+                </Button>
+              </form>
+            ) : (
+              <div className="text-center space-y-4">
+                <div className="bg-green-50 border border-green-200 text-green-700 text-sm p-4 rounded">
+                  <Mail className="w-8 h-8 mx-auto mb-2 text-green-600" />
+                  <p className="font-medium">Email enviado com sucesso!</p>
+                  <p className="mt-1">Verifique a sua caixa de entrada e siga as instruções para redefinir a sua palavra-passe.</p>
+                  <p className="mt-2 text-xs text-green-600">O link é válido por 1 hora.</p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={onGoToLogin}
+                  className="w-full"
+                >
+                  Voltar ao Login
+                </Button>
+              </div>
+            )}
+            <div className="mt-4 text-center">
+              <button onClick={onGoToLogin} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
+                Voltar ao Login
+              </button>
+              <span className="text-gray-300 mx-2">|</span>
+              <button onClick={onBack} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
+                Página Inicial
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Reset Password View
+// ============================================================
+
+function ResetPasswordView({ token, onGoToLogin }: { token: string; onGoToLogin: () => void }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (newPassword.length < 6) {
+      setError('A palavra-passe deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('As palavras-passe não coincidem.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword }),
+      });
+
+      if (res.ok) {
+        setSuccess(true);
+        toast({ title: 'Senha redefinida com sucesso!' });
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Erro ao redefinir senha');
+      }
+    } catch {
+      setError('Erro de conexão com o servidor');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#F9A601] rounded-lg mb-4">
+            <Lock className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Nova Palavra-passe</h1>
+          <p className="text-gray-500 mt-1">PGR - Sistema de Gestão de Arguidos</p>
+        </div>
+
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg text-center">Redefinir Palavra-passe</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!success ? (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded">{error}</div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">Nova Palavra-passe</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    required
+                    minLength={6}
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirmar Palavra-passe</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    placeholder="Repita a nova palavra-passe"
+                    required
+                    minLength={6}
+                    className="h-10"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full bg-[#F9A601] hover:bg-[#FA812A] text-white font-medium h-10"
+                  disabled={loading}
+                >
+                  {loading ? 'A redefinir...' : 'Redefinir Palavra-passe'}
+                </Button>
+              </form>
+            ) : (
+              <div className="text-center space-y-4">
+                <div className="bg-green-50 border border-green-200 text-green-700 text-sm p-4 rounded">
+                  <Shield className="w-8 h-8 mx-auto mb-2 text-green-600" />
+                  <p className="font-medium">Palavra-passe redefinida com sucesso!</p>
+                  <p className="mt-1">Pode agora iniciar sessão com a sua nova palavra-passe.</p>
+                </div>
+                <Button onClick={onGoToLogin} className="w-full bg-[#F9A601] hover:bg-[#FA812A] text-white">
+                  Iniciar Sessão
+                </Button>
+              </div>
+            )}
+            <div className="mt-4 text-center">
+              <button onClick={onGoToLogin} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
+                Voltar ao Login
               </button>
             </div>
           </CardContent>
@@ -2164,6 +2421,21 @@ export default function Home() {
 
   // Check session on mount
   useEffect(() => {
+    // Check URL params for reset-password view
+    const urlParams = new URLSearchParams(window.location.search);
+    const resetToken = urlParams.get('token');
+    const viewParam = urlParams.get('view');
+    if (resetToken && viewParam === 'reset-password') {
+      setView('reset-password');
+      setAuthChecked(true);
+      return;
+    }
+    if (viewParam === 'forgot-password') {
+      setView('forgot-password');
+      setAuthChecked(true);
+      return;
+    }
+
     fetch('/api/auth/login')
       .then(res => {
         if (res.ok) return res.json();
@@ -2261,8 +2533,18 @@ export default function Home() {
     return <PesquisaPublicaView onBack={() => setView('landing')} />;
   }
 
+  if (view === 'forgot-password') {
+    return <ForgotPasswordView onBack={() => setView('landing')} onGoToLogin={() => setView('login')} />;
+  }
+
+  if (view === 'reset-password') {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token') || '';
+    return <ResetPasswordView token={token} onGoToLogin={() => setView('login')} />;
+  }
+
   if (!user || view === 'login') {
-    return <LoginView onLogin={handleLogin} onBack={() => setView('landing')} />;
+    return <LoginView onLogin={handleLogin} onBack={() => setView('landing')} onForgotPassword={() => setView('forgot-password')} />;
   }
 
   return (

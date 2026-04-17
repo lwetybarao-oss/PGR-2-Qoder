@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import webpush from 'web-push';
+import { supabase } from '@/lib/supabase';
 
 // Configure VAPID
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
@@ -10,24 +11,24 @@ if (vapidPublicKey && vapidPrivateKey) {
   webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 }
 
-// In-memory subscription store (matches subscribe route)
-// In production, these would be stored in the database
-const subscriptions: Map<string, { endpoint: string; keys: { p256dh: string; auth: string } }> = new Map();
-
-// Import from subscribe - we share the same store via a module
-// For now, notifications can be sent to manually registered subscriptions
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { subscriptions: subs, notification } = body;
-
-    if (!subs || !Array.isArray(subs) || subs.length === 0) {
-      return NextResponse.json({ error: 'Nenhuma subscrição fornecida' }, { status: 400 });
-    }
+    const { notification } = body;
 
     if (!notification) {
       return NextResponse.json({ error: 'Dados da notificação inválidos' }, { status: 400 });
+    }
+
+    // Buscar subscrições persistidas no Supabase
+    const { data: subscriptions, error: subError } = await supabase
+      .from('push_subscriptions')
+      .select('*');
+
+    if (subError) throw subError;
+
+    if (!subscriptions || subscriptions.length === 0) {
+      return NextResponse.json({ success: true, sent: 0, message: 'Nenhuma subscrição registada.' });
     }
 
     const payload = JSON.stringify({
@@ -41,15 +42,18 @@ export async function POST(request: NextRequest) {
     });
 
     const results = await Promise.allSettled(
-      subs.map((sub: any) =>
+      subscriptions.map((sub: any) =>
         webpush.sendNotification(
           {
             endpoint: sub.endpoint,
-            keys: sub.keys,
+            keys: {
+              p256dh: sub.p256dh,
+              auth: sub.auth,
+            },
           },
           payload,
           {
-            TTL: 86400, // 24 hours
+            TTL: 86400,
             urgency: notification.urgency === 'vencido' ? 'high' : notification.urgency === 'critico' ? 'high' : 'normal',
           }
         )
@@ -59,25 +63,32 @@ export async function POST(request: NextRequest) {
     const successful = results.filter((r) => r.status === 'fulfilled').length;
     const failed = results.filter((r) => r.status === 'rejected').length;
 
-    // Clean up failed subscriptions (expired endpoints)
+    // Clean up expired subscriptions
+    const expiredEndpoints: string[] = [];
     results.forEach((result, idx) => {
       if (result.status === 'rejected') {
         const err = result.reason as any;
         if (err?.statusCode === 404 || err?.statusCode === 410) {
-          // Subscription expired - would remove from DB in production
-          console.log(`Expired subscription removed: ${subs[idx].endpoint.slice(0, 50)}...`);
+          expiredEndpoints.push(subscriptions[idx].id);
         }
       }
     });
+
+    if (expiredEndpoints.length > 0) {
+      await supabase
+        .from('push_subscriptions')
+        .delete()
+        .in('id', expiredEndpoints);
+    }
 
     return NextResponse.json({
       success: true,
       sent: successful,
       failed,
-      total: subs.length,
+      total: subscriptions.length,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Push notify error:', error);
-    return NextResponse.json({ error: 'Erro ao enviar notificações' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao enviar notificações', details: error.message }, { status: 500 });
   }
 }

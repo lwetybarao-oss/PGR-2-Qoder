@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase, toCamelCase } from '@/lib/supabase';
 import { calcPrazos, todayNormalized } from '@/lib/prazos';
 
 export async function GET(
@@ -8,17 +8,29 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const arguido = await db.arguido.findUnique({
-      where: { id },
-      include: { alertas: { orderBy: { criadoEm: 'desc' } } }
-    });
 
-    if (!arguido) {
+    const { data: arguido, error } = await supabase
+      .from('arguidos')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error || !arguido) {
       return NextResponse.json({ error: 'Arguido não encontrado' }, { status: 404 });
     }
 
-    return NextResponse.json({ data: calcPrazos(arguido) });
-  } catch (error) {
+    // Buscar alertas relacionados
+    const { data: alertas } = await supabase
+      .from('alerta_prazos')
+      .select('*')
+      .eq('arguido_id', id)
+      .order('criado_em', { ascending: false });
+
+    const result = toCamelCase(arguido);
+    result.alertas = (alertas || []).map((a: any) => toCamelCase(a));
+
+    return NextResponse.json({ data: calcPrazos(result) });
+  } catch (error: any) {
     console.error('Error fetching arguido:', error);
     return NextResponse.json({ error: 'Erro ao buscar arguido' }, { status: 500 });
   }
@@ -32,13 +44,25 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const existing = await db.arguido.findUnique({ where: { id } });
-    if (!existing) {
+    // Verificar se existe
+    const { data: existing, error: findError } = await supabase
+      .from('arguidos')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (findError || !existing) {
       return NextResponse.json({ error: 'Arguido não encontrado' }, { status: 404 });
     }
 
-    if (body.numeroProcesso && body.numeroProcesso !== existing.numeroProcesso) {
-      const dup = await db.arguido.findUnique({ where: { numeroProcesso: body.numeroProcesso } });
+    // Verificar duplicado de número de processo
+    if (body.numeroProcesso && body.numeroProcesso !== existing.numero_processo) {
+      const { data: dup } = await supabase
+        .from('arguidos')
+        .select('id')
+        .eq('numero_processo', body.numeroProcesso)
+        .single();
+
       if (dup) {
         return NextResponse.json({ error: 'Já existe um arguido com este número de processo.' }, { status: 400 });
       }
@@ -46,7 +70,6 @@ export async function PUT(
 
     const today = todayNormalized();
 
-    // Validar data de detenção (se alterada)
     if (body.dataDetencao) {
       const detDate = new Date(body.dataDetencao);
       detDate.setHours(0, 0, 0, 0);
@@ -55,11 +78,10 @@ export async function PUT(
       }
     }
 
-    // Validar data de prorrogação
     if (body.dataProrrogacao) {
       const prorDate = new Date(body.dataProrrogacao);
       prorDate.setHours(0, 0, 0, 0);
-      const detDate = new Date(body.dataDetencao || existing.dataDetencao);
+      const detDate = new Date(body.dataDetencao || existing.data_detencao);
       detDate.setHours(0, 0, 0, 0);
       if (prorDate < detDate) {
         return NextResponse.json({ error: 'A data de prorrogação não pode ser anterior à data de detenção.' }, { status: 400 });
@@ -69,31 +91,35 @@ export async function PUT(
       }
     }
 
-    const updated = await db.arguido.update({
-      where: { id },
-      data: {
-        numeroProcesso: body.numeroProcesso,
-        nomeArguido: body.nomeArguido,
-        filiacaoPai: body.filiacaoPai || null,
-        filiacaoMae: body.filiacaoMae || null,
-        dataDetencao: body.dataDetencao ? new Date(body.dataDetencao) : undefined,
-        dataRemessaJg: body.dataRemessaJg ? new Date(body.dataRemessaJg) : null,
-        dataRegresso: body.dataRegresso ? new Date(body.dataRegresso) : null,
-        crime: body.crime,
-        medidasAplicadas: body.medidasAplicadas || null,
-        magistradoResponsavel: body.magistradoResponsavel,
-        dataRemessaSic: body.dataRemessaSic ? new Date(dataRemessaSic) : null,
-        dataProrrogacao: body.dataProrrogacao ? new Date(body.dataProrrogacao) : null,
-        remessaJgAlteracao: body.remessaJgAlteracao ? new Date(remessaJgAlteracao) : null,
-        observacao1: body.observacao1 || null,
-        observacao2: body.observacao2 || null,
-      }
-    });
+    const { data: updated, error } = await supabase
+      .from('arguidos')
+      .update({
+        numero_processo: body.numeroProcesso ?? existing.numero_processo,
+        nome_arguido: body.nomeArguido ?? existing.nome_arguido,
+        filiacao_pai: body.filiacaoPai ?? existing.filiacao_pai,
+        filiacao_mae: body.filiacaoMae ?? existing.filiacao_mae,
+        data_detencao: body.dataDetencao ? new Date(body.dataDetencao).toISOString() : existing.data_detencao,
+        data_remessa_jg: body.dataRemessaJg ? new Date(body.dataRemessaJg).toISOString() : existing.data_remessa_jg,
+        data_regresso: body.dataRegresso ? new Date(body.dataRegresso).toISOString() : existing.data_regresso,
+        crime: body.crime ?? existing.crime,
+        medidas_aplicadas: body.medidasAplicadas ?? existing.medidas_aplicadas,
+        magistrado_responsavel: body.magistradoResponsavel ?? existing.magistrado_responsavel,
+        data_remessa_sic: body.dataRemessaSic ? new Date(body.dataRemessaSic).toISOString() : existing.data_remessa_sic,
+        data_prorrogacao: body.dataProrrogacao ? new Date(body.dataProrrogacao).toISOString() : existing.data_prorrogacao,
+        remessa_jg_alteracao: body.remessaJgAlteracao ? new Date(body.remessaJgAlteracao).toISOString() : existing.remessa_jg_alteracao,
+        observacao1: body.observacao1 ?? existing.observacao1,
+        observacao2: body.observacao2 ?? existing.observacao2,
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-    return NextResponse.json({ data: calcPrazos(updated) });
-  } catch (error) {
+    if (error) throw error;
+
+    return NextResponse.json({ data: calcPrazos(toCamelCase(updated)) });
+  } catch (error: any) {
     console.error('Error updating arguido:', error);
-    return NextResponse.json({ error: 'Erro ao atualizar arguido' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao atualizar arguido', details: error.message }, { status: 500 });
   }
 }
 
@@ -103,18 +129,26 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const existing = await db.arguido.findUnique({ where: { id } });
-    if (!existing) {
+
+    const { data: existing, error: findError } = await supabase
+      .from('arguidos')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (findError || !existing) {
       return NextResponse.json({ error: 'Arguido não encontrado' }, { status: 404 });
     }
 
-    await db.arguido.update({
-      where: { id },
-      data: { ativo: false }
-    });
+    const { error } = await supabase
+      .from('arguidos')
+      .update({ ativo: false })
+      .eq('id', id);
+
+    if (error) throw error;
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting arguido:', error);
     return NextResponse.json({ error: 'Erro ao remover arguido' }, { status: 500 });
   }

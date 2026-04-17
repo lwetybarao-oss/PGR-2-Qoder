@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { cookies } from 'next/headers';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,15 +11,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Credenciais inválidas' }, { status: 401 });
     }
 
-    const user = await db.user.findUnique({ where: { username } });
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .eq('ativo', true)
+      .single();
 
-    if (!user || user.password !== password) {
+    if (error || !user) {
+      return NextResponse.json({ error: 'Credenciais inválidas' }, { status: 401 });
+    }
+
+    // Comparar password com hash bcrypt
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
       return NextResponse.json({ error: 'Credenciais inválidas' }, { status: 401 });
     }
 
     const response = NextResponse.json({
       success: true,
-      user: { id: user.id, name: user.name, username: user.username }
+      user: { id: user.id, name: user.name, username: user.username, email: user.email, role: user.role }
     });
     response.cookies.set('pgr_session', user.id, {
       httpOnly: true,
@@ -28,7 +40,8 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-  } catch {
+  } catch (error) {
+    console.error('Login error:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
@@ -42,12 +55,14 @@ export async function GET() {
       return NextResponse.json({ authenticated: false }, { status: 401 });
     }
 
-    const user = await db.user.findUnique({
-      where: { id: sessionId },
-      select: { id: true, name: true, username: true }
-    });
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, name, username, email, role, email_notificacoes')
+      .eq('id', sessionId)
+      .eq('ativo', true)
+      .single();
 
-    if (!user) {
+    if (error || !user) {
       return NextResponse.json({ authenticated: false }, { status: 401 });
     }
 

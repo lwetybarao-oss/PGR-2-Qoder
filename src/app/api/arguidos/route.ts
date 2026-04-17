@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { calcPrazos, classificarUrgencia, todayNormalized } from '@/lib/prazos';
+import { supabase, toCamelCaseArray } from '@/lib/supabase';
+import { calcPrazos, todayNormalized } from '@/lib/prazos';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,97 +14,80 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
 
-    const where: any = { ativo: true };
+    // Build filters
+    let query = supabase
+      .from('arguidos')
+      .select('*')
+      .eq('ativo', true);
 
     if (q) {
-      where.OR = [
-        { nomeArguido: { contains: q } },
-        { numeroProcesso: { contains: q } },
-        { crime: { contains: q } },
-        { magistradoResponsavel: { contains: q } }
-      ];
+      query = query.or(`nome_arguido.ilike.%${q}%,numero_processo.ilike.%${q}%,crime.ilike.%${q}%,magistrado_responsavel.ilike.%${q}%`);
     }
 
     if (crime) {
-      where.crime = { contains: crime };
+      query = query.ilike('crime', `%${crime}%`);
     }
 
     if (magistrado) {
-      where.magistradoResponsavel = { contains: magistrado };
+      query = query.ilike('magistrado_responsavel', `%${magistrado}%`);
     }
 
-    if (dataInicio || dataFim) {
-      where.dataDetencao = {};
-      if (dataInicio) {
-        where.dataDetencao.gte = new Date(dataInicio);
-      }
-      if (dataFim) {
-        where.dataDetencao.lte = new Date(dataFim);
-      }
+    if (dataInicio) {
+      query = query.gte('data_detencao', dataInicio);
+    }
+    if (dataFim) {
+      query = query.lte('data_detencao', dataFim);
     }
 
-    // Se há filtro de status_prazo, precisamos buscar todos e filtrar na aplicação
-    // (o status é calculado, não está na BD)
+    // Se há filtro de status_prazo, buscar todos e filtrar na aplicação
     const useStatusFilter = statusPrazo && ['normal', 'alerta', 'critico', 'vencido'].includes(statusPrazo);
 
-    // Se filtramos por status, buscar sem paginação primeiro para ter contagens correctas
-    const allArguidos = useStatusFilter
-      ? await db.arguido.findMany({
-          where,
-          orderBy: { criadoEm: 'desc' },
-        })
-      : [];
-
-    let resultWithPrazos = useStatusFilter
-      ? allArguidos.map(a => calcPrazos(a))
-      : [];
-
-    // Aplicar filtro de status ANTES da paginação
     if (useStatusFilter) {
+      // Buscar todos sem paginação para filtrar por status calculado
+      const { data: allArguidos, error } = await query.order('criado_em', { ascending: false });
+
+      if (error) throw error;
+
+      let resultWithPrazos = (allArguidos || []).map((a: any) => calcPrazos(toCamelCase(a)));
+
       if (statusPrazo === 'alerta') {
-        // "alerta" no filtro inclui critico e alerta (0-7 dias, não vencido)
         resultWithPrazos = resultWithPrazos.filter(a =>
           a.statusPrazo === 'alerta' || a.statusPrazo === 'critico'
         );
       } else {
         resultWithPrazos = resultWithPrazos.filter(a => a.statusPrazo === statusPrazo);
       }
-    }
 
-    const total = useStatusFilter
-      ? resultWithPrazos.length
-      : await db.arguido.count({ where });
+      const total = resultWithPrazos.length;
+      const totalPages = Math.ceil(total / limit);
+      const data = resultWithPrazos.slice((page - 1) * limit, page * limit);
 
-    const totalPages = Math.ceil(total / limit);
-
-    // Paginação aplicada APÓS o filtro de status
-    let data: any[];
-    if (useStatusFilter) {
-      data = resultWithPrazos.slice((page - 1) * limit, page * limit);
+      return NextResponse.json({ data, pagination: { page, limit, total, totalPages } });
     } else {
-      const [arguidos] = await Promise.all([
-        db.arguido.findMany({
-          where,
-          orderBy: { criadoEm: 'desc' },
-          skip: (page - 1) * limit,
-          take: limit
-        }),
-      ]);
-      data = arguidos.map(a => calcPrazos(a));
-    }
+      // Contar total
+      const { count, error: countError } = await query.select('*', { count: 'exact', head: true });
+      if (countError) throw countError;
 
-    return NextResponse.json({
-      data,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages
-      }
-    });
-  } catch (error) {
+      const total = count || 0;
+      const totalPages = Math.ceil(total / limit);
+
+      // Buscar com paginação
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+
+      const { data: arguidos, error } = await query
+        .order('criado_em', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      const data = (arguidos || []).map((a: any) => calcPrazos(toCamelCase(a)));
+
+      return NextResponse.json({ data, pagination: { page, limit, total, totalPages } });
+    }
+  } catch (error: any) {
     console.error('Error fetching arguidos:', error);
-    return NextResponse.json({ error: 'Erro ao buscar arguidos' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao buscar arguidos', details: error.message }, { status: 500 });
   }
 }
 
@@ -113,21 +96,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     const {
-      numeroProcesso,
-      nomeArguido,
-      filiacaoPai,
-      filiacaoMae,
-      dataDetencao,
-      dataRemessaJg,
-      dataRegresso,
-      crime,
-      medidasAplicadas,
-      magistradoResponsavel,
-      dataRemessaSic,
-      dataProrrogacao,
-      remessaJgAlteracao,
-      observacao1,
-      observacao2
+      numeroProcesso, nomeArguido, filiacaoPai, filiacaoMae,
+      dataDetencao, dataRemessaJg, dataRegresso, crime,
+      medidasAplicadas, magistradoResponsavel, dataRemessaSic,
+      dataProrrogacao, remessaJgAlteracao, observacao1, observacao2
     } = body;
 
     if (!numeroProcesso || !nomeArguido || !dataDetencao || !crime || !magistradoResponsavel) {
@@ -137,7 +109,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existing = await db.arguido.findUnique({ where: { numeroProcesso } });
+    // Verificar duplicado
+    const { data: existing } = await supabase
+      .from('arguidos')
+      .select('id')
+      .eq('numero_processo', numeroProcesso)
+      .single();
+
     if (existing) {
       return NextResponse.json({ error: 'Já existe um arguido com este número de processo.' }, { status: 400 });
     }
@@ -161,29 +139,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const arguido = await db.arguido.create({
-      data: {
-        numeroProcesso,
-        nomeArguido,
-        filiacaoPai: filiacaoPai || null,
-        filiacaoMae: filiacaoMae || null,
-        dataDetencao: new Date(dataDetencao),
-        dataRemessaJg: dataRemessaJg ? new Date(dataRemessaJg) : null,
-        dataRegresso: dataRegresso ? new Date(dataRegresso) : null,
+    const { data: arguido, error } = await supabase
+      .from('arguidos')
+      .insert({
+        numero_processo: numeroProcesso,
+        nome_arguido: nomeArguido,
+        filiacao_pai: filiacaoPai || null,
+        filiacao_mae: filiacaoMae || null,
+        data_detencao: dataDetencao,
+        data_remessa_jg: dataRemessaJg || null,
+        data_regresso: dataRegresso || null,
         crime,
-        medidasAplicadas: medidasAplicadas || null,
-        magistradoResponsavel,
-        dataRemessaSic: dataRemessaSic ? new Date(dataRemessaSic) : null,
-        dataProrrogacao: dataProrrogacao ? new Date(dataProrrogacao) : null,
-        remessaJgAlteracao: remessaJgAlteracao ? new Date(remessaJgAlteracao) : null,
+        medidas_aplicadas: medidasAplicadas || null,
+        magistrado_responsavel: magistradoResponsavel,
+        data_remessa_sic: dataRemessaSic || null,
+        data_prorrogacao: dataProrrogacao || null,
+        remessa_jg_alteracao: remessaJgAlteracao || null,
         observacao1: observacao1 || null,
         observacao2: observacao2 || null,
-      }
-    });
+      })
+      .select()
+      .single();
 
-    return NextResponse.json({ data: calcPrazos(arguido) }, { status: 201 });
-  } catch (error) {
+    if (error) throw error;
+
+    return NextResponse.json({ data: calcPrazos(toCamelCase(arguido)) }, { status: 201 });
+  } catch (error: any) {
     console.error('Error creating arguido:', error);
-    return NextResponse.json({ error: 'Erro ao criar arguido' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao criar arguido', details: error.message }, { status: 500 });
   }
 }
