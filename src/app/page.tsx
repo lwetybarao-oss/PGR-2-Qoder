@@ -898,10 +898,8 @@ function DashboardView({ onNavigate, onVerificarPrazos }: { onNavigate: (v: View
 
   const stats = [
     { label: 'Total Arguidos', value: data.totalArguidos, icon: <Users className="w-5 h-5" />, color: 'bg-blue-50 text-blue-700 border-blue-200' },
-    { label: 'Prorrogados', value: data.totalProrrogados, icon: <CalendarClock className="w-5 h-5" />, color: 'bg-purple-50 text-purple-700 border-purple-200' },
     { label: 'Vencidos', value: data.prazosVencidos, icon: <AlertTriangle className="w-5 h-5" />, color: 'bg-red-50 text-red-700 border-red-200' },
     { label: 'Críticos', value: data.prazosCriticos, icon: <AlertTriangle className="w-5 h-5" />, color: 'bg-orange-50 text-orange-700 border-orange-200' },
-    { label: 'Alerta', value: data.prazosAlertas, icon: <Bell className="w-5 h-5" />, color: 'bg-amber-50 text-amber-700 border-amber-200' },
     { label: 'Normal', value: data.prazosNormal, icon: <CheckCircle className="w-5 h-5" />, color: 'bg-green-50 text-green-700 border-green-200' },
   ];
 
