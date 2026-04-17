@@ -40,31 +40,21 @@ export async function GET(
     // --- CABECALHO (sem cor de fundo) ---
     let y = 15;
 
-    // Insignia PGR (base64 embutido)
-    doc.addImage(INSIGNIA_B64, 'PNG', pageW / 2 - 12, y, 24, 24);
-    y += 28;
-
-    // Linha decorativa dourada
-    doc.setDrawColor(201, 162, 39); // #c9a227
-    doc.setLineWidth(1);
-    doc.line(margin, y, margin + contentW, y);
-    y += 6;
+    // Insignia PGR (base64 embutido) - imagem 367x415, aspect ratio ~0.88
+    const insigniaW = 28;
+    const insigniaH = 32;
+    doc.addImage(INSIGNIA_B64, 'PNG', pageW / 2 - insigniaW / 2, y, insigniaW, insigniaH);
+    y += insigniaH + 4;
 
     doc.setTextColor(30, 58, 95); // #1e3a5f
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.text('PGR - Procuradoria-Geral da Republica', pageW / 2, y, { align: 'center' });
-    y += 5;
+    y += 6;
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text('Republica de Angola', pageW / 2, y, { align: 'center' });
-    y += 6;
-
-    // Linha decorativa
-    doc.setDrawColor(201, 162, 39);
-    doc.setLineWidth(0.5);
-    doc.line(margin, y, margin + contentW, y);
     y += 7;
 
     doc.setFontSize(13);
