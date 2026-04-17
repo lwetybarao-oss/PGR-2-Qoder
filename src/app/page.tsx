@@ -2252,6 +2252,168 @@ function RelatorioContent({ tipo }: { tipo: string }) {
 }
 
 // ============================================================
+// Alerta Prazos Overlay - Floating window with countdown
+// ============================================================
+
+function AlertaPrazosOverlay({ onClose }: { onClose: () => void }) {
+  const [timeLeft, setTimeLeft] = useState(15);
+  const [data, setData] = useState<{ criticos: number; vencidos: number; alertas: number; prorrogados: number } | null>(null);
+
+  useEffect(() => {
+    // Fetch alert summary
+    fetch('/api/dashboard')
+      .then(res => res.ok ? res.json() : null)
+      .then(json => {
+        if (json) {
+          setData({
+            criticos: json.alertasCriticos || 0,
+            vencidos: json.prazosVencidos || 0,
+            alertas: json.recentAlertas?.length || 0,
+            prorrogados: json.totalProrrogados || 0,
+          });
+        }
+      })
+      .catch(() => {});
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Auto close when timer reaches 0
+  useEffect(() => {
+    if (timeLeft === 0) onClose();
+  }, [timeLeft, onClose]);
+
+  const progressPercent = (timeLeft / 15) * 100;
+
+  const hasAlerts = data && (data.criticos > 0 || data.vencidos > 0);
+  const overlayBg = hasAlerts ? 'bg-gradient-to-br from-red-900/95 to-gray-900/95' : 'bg-gradient-to-br from-gray-800/95 to-gray-900/95';
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className={`w-full max-w-sm mx-4 rounded-2xl shadow-2xl border ${hasAlerts ? 'border-red-500/50' : 'border-gray-600/50'} overflow-hidden`}>
+        {/* Progress bar */}
+        <div className="h-1 bg-gray-700">
+          <div
+            className={`h-full transition-all duration-1000 ease-linear ${hasAlerts ? 'bg-red-500' : 'bg-[#F9A601]'}`}
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+
+        <div className={overlayBg + ' p-6'}>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-xl ${hasAlerts ? 'bg-red-500/20' : 'bg-amber-500/20'}`}>
+                <AlertTriangle className={`w-5 h-5 ${hasAlerts ? 'text-red-400' : 'text-amber-400'}`} />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-base">Status dos Prazos</h3>
+                <p className="text-gray-400 text-xs">Resumo de alertas do sistema</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {!data ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-gray-400 text-sm animate-pulse">A carregar dados...</div>
+            </div>
+          ) : (
+            <>
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                <div className={`rounded-xl p-3 ${data.criticos > 0 ? 'bg-red-500/15 border border-red-500/30' : 'bg-white/5 border border-white/10'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertTriangle className={`w-3.5 h-3.5 ${data.criticos > 0 ? 'text-red-400' : 'text-gray-500'}`} />
+                    <span className="text-gray-400 text-xs font-medium">Criticos</span>
+                  </div>
+                  <p className={`text-2xl font-bold ${data.criticos > 0 ? 'text-red-400' : 'text-gray-300'}`}>{data.criticos}</p>
+                </div>
+
+                <div className={`rounded-xl p-3 ${data.vencidos > 0 ? 'bg-orange-500/15 border border-orange-500/30' : 'bg-white/5 border border-white/10'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertTriangle className={`w-3.5 h-3.5 ${data.vencidos > 0 ? 'text-orange-400' : 'text-gray-500'}`} />
+                    <span className="text-gray-400 text-xs font-medium">Vencidos</span>
+                  </div>
+                  <p className={`text-2xl font-bold ${data.vencidos > 0 ? 'text-orange-400' : 'text-gray-300'}`}>{data.vencidos}</p>
+                </div>
+
+                <div className="rounded-xl p-3 bg-white/5 border border-white/10">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Bell className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-gray-400 text-xs font-medium">Alertas</span>
+                  </div>
+                  <p className="text-2xl font-bold text-amber-400">{data.alertas}</p>
+                </div>
+
+                <div className="rounded-xl p-3 bg-white/5 border border-white/10">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CalendarClock className="w-3.5 h-3.5 text-blue-400" />
+                    <span className="text-gray-400 text-xs font-medium">Prorrogados</span>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-400">{data.prorrogados}</p>
+                </div>
+              </div>
+
+              {/* Status Message */}
+              {hasAlerts ? (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-red-300 text-xs leading-relaxed">
+                      {data.vencidos > 0 && data.criticos > 0
+                        ? `Existem ${data.vencidos} prazo(s) vencido(s) e ${data.criticos} alerta(s) critico(s) que requerem atencao imediata.`
+                        : data.vencidos > 0
+                        ? `Existem ${data.vencidos} prazo(s) vencido(s). Accao necessaria para regularizar a situacao processual.`
+                        : `${data.criticos} alerta(s) critico(s) activo(s). Prazos proximos de expirar requerem acompanhamento.`}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 mb-4">
+                  <div className="flex items-start gap-2">
+                    <Shield className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-green-300 text-xs leading-relaxed">
+                      Nenhum prazo critico ou vencido. Todos os processos estao dentro do prazo legal.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Timer & Close */}
+              <div className="flex items-center justify-between">
+                <p className="text-gray-500 text-xs">Auto-fecho em {timeLeft}s</p>
+                <button
+                  onClick={onClose}
+                  className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-white/10 hover:bg-white/20 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // Main App
 // ============================================================
 
@@ -2482,9 +2644,13 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [user]);
 
+  const [showAlertOverlay, setShowAlertOverlay] = useState(false);
+
   const handleLogin = (u: User) => {
     setUser(u);
     setView('dashboard');
+    // Show alert status overlay after login
+    setTimeout(() => setShowAlertOverlay(true), 800);
   };
 
   const handleLogout = async () => {
