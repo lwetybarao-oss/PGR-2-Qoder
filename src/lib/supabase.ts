@@ -1,19 +1,63 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+// Inicialização preguiçosa (lazy) para evitar crash se env vars não existem
+let _supabase: SupabaseClient | null = null;
+let _supabaseClient: SupabaseClient | null = null;
+
+function getEnvOrThrow(key: string): string {
+  const val = process.env[key];
+  if (!val) {
+    throw new Error(`Variável de ambiente ${key} não configurada. Verifique as Environment Variables na Vercel.`);
+  }
+  return val;
+}
 
 // Client para uso no servidor (service_role) - bypass RLS
-export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
+export function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    _supabase = createClient(
+      getEnvOrThrow('NEXT_PUBLIC_SUPABASE_URL'),
+      getEnvOrThrow('SUPABASE_SERVICE_ROLE_KEY'),
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
+  }
+  return _supabase;
+}
+
+// Alias para compatibilidade com código existente
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    const client = getSupabase();
+    const value = (client as any)[prop];
+    if (typeof value === 'function') return value.bind(client);
+    return value;
+  }
 });
 
 // Client para uso no cliente (anon key) - sujeito a RLS
-export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+export function getSupabaseClient(): SupabaseClient {
+  if (!_supabaseClient) {
+    _supabaseClient = createClient(
+      getEnvOrThrow('NEXT_PUBLIC_SUPABASE_URL'),
+      getEnvOrThrow('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    );
+  }
+  return _supabaseClient;
+}
+
+export const supabaseClient = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    const client = getSupabaseClient();
+    const value = (client as any)[prop];
+    if (typeof value === 'function') return value.bind(client);
+    return value;
+  }
+});
 
 // Helper: Converter nome de coluna camelCase → snake_case para Supabase
 export function toSnakeCase(obj: Record<string, any>): Record<string, any> {
@@ -61,5 +105,4 @@ export const COLUMN_MAP: Record<string, string> = {
   updatedAt: 'updated_at',
   emailNotificacoes: 'email_notificacoes',
   userId: 'user_id',
-  arguidoId: 'arguido_id',
 };
