@@ -53,6 +53,7 @@ import {
   Mail,
   KeyRound,
   Lock,
+  CheckCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
