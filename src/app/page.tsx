@@ -948,8 +948,8 @@ function ArguidosListView({
               <SelectContent>
                 <SelectItem value="__all">Todos os status</SelectItem>
                 <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="critico">Crítico (≤3 dias)</SelectItem>
-                <SelectItem value="alerta">Alerta (4-7 dias)</SelectItem>
+                <SelectItem value="critico">Crítico</SelectItem>
+                <SelectItem value="alerta">Alerta</SelectItem>
                 <SelectItem value="vencido">Vencido</SelectItem>
               </SelectContent>
             </Select>
@@ -1250,6 +1250,17 @@ function ArguidoFormView({
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Data de Detenção *</Label>
                   <Input type="date" value={form.dataDetencao} onChange={e => updateField('dataDetencao', e.target.value)} required className="h-9 text-sm" />
+                  {form.dataDetencao && (() => {
+                    const det = new Date(form.dataDetencao + 'T00:00:00');
+                    const fim1 = new Date(det);
+                    fim1.setDate(fim1.getDate() + 90);
+                    const fim1Str = fim1.toLocaleDateString('pt-BR');
+                    return (
+                      <p className="text-xs text-blue-700 mt-1 font-medium">
+                        Previsao fim do 1. prazo: {fim1Str}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Data de Remessa ao JG</Label>
@@ -1314,6 +1325,17 @@ function ArguidoFormView({
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Data de Prorrogação</Label>
                   <Input type="date" value={form.dataProrrogacao} onChange={e => updateField('dataProrrogacao', e.target.value)} className="h-9 text-sm" />
+                  {form.dataProrrogacao && (() => {
+                    const pror = new Date(form.dataProrrogacao + 'T00:00:00');
+                    const fim2 = new Date(pror);
+                    fim2.setDate(fim2.getDate() + 90);
+                    const fim2Str = fim2.toLocaleDateString('pt-BR');
+                    return (
+                      <p className="text-xs text-blue-700 mt-1 font-medium">
+                        Previsao fim do 2. prazo: {fim2Str}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Remessa ao JG / Alteração</Label>

@@ -116,3 +116,21 @@ Stage Summary:
 - Dashboard: 3 vencidos, 4 alertas criticos, 8 normal (no double-counting)
 - Alert verification creates alerts with proper urgency classification and dedup per day
 - All status filters (vencido/critico/alerta/normal) return correct results with accurate pagination
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Add 2º prazo preview in Novo Arguido form and fix filter labels
+
+Work Log:
+- Read page.tsx form section (lines 1087-1350) to understand form structure
+- Read prazos.ts to understand calculation logic (1º prazo = dataDetencao + 90 dias, 2º prazo = dataProrrogacao + 90 dias)
+- Added 1º prazo preview below "Data de Detenção" input - shows calculated end date when detention date is filled
+- Added 2º prazo preview below "Data de Prorrogação" input - shows calculated end date when prorrogation date is filled
+- Fixed "Status do Prazo" filter: removed "≤3 dias" from Crítico option and "(4-7 dias)" from Alerta option
+- Verified build compiles successfully
+
+Stage Summary:
+- Two prazo previews added to the Novo Arguido form with blue text styling
+- Filter labels cleaned up: "Crítico (≤3 dias)" → "Crítico", "Alerta (4-7 dias)" → "Alerta"
+- Build passes without errors
