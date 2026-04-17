@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, toCamelCase } from '@/lib/supabase';
 import { calcPrazos } from '@/lib/prazos';
+import fs from 'fs';
+import path from 'path';
 
 export async function GET(
   request: NextRequest,
@@ -33,26 +35,45 @@ export async function GET(
     const pageW = 210;
     const margin = 20;
     const contentW = pageW - margin * 2;
-    let y = 20;
 
-    // --- CABECALHO ---
-    doc.setFillColor(249, 166, 1); // #F9A601
-    doc.rect(0, 0, pageW, 40, 'F');
+    // --- CABECALHO (sem cor de fundo) ---
+    let y = 15;
+
+    // Insignia PGR
+    const insigniaPath = path.join(process.cwd(), 'public', 'insignia-pgr.png');
+    if (fs.existsSync(insigniaPath)) {
+      doc.addImage(insigniaPath, 'PNG', pageW / 2 - 12, y, 24, 24);
+      y += 28;
+    }
+
+    // Linha decorativa dourada
+    doc.setDrawColor(201, 162, 39); // #c9a227
+    doc.setLineWidth(1);
+    doc.line(margin, y, margin + contentW, y);
+    y += 6;
 
     doc.setTextColor(30, 58, 95); // #1e3a5f
-    doc.setFontSize(18);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('PGR - Procuradoria-Geral da Republica', pageW / 2, 15, { align: 'center' });
+    doc.text('PGR - Procuradoria-Geral da Republica', pageW / 2, y, { align: 'center' });
+    y += 5;
 
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text('Republica de Angola', pageW / 2, 22, { align: 'center' });
+    doc.text('Republica de Angola', pageW / 2, y, { align: 'center' });
+    y += 6;
+
+    // Linha decorativa
+    doc.setDrawColor(201, 162, 39);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, margin + contentW, y);
+    y += 7;
 
     doc.setFontSize(13);
     doc.setFont('helvetica', 'bold');
-    doc.text('Ficha do Arguido em Prisao Preventiva', pageW / 2, 33, { align: 'center' });
-
-    y = 50;
+    doc.setTextColor(80, 80, 80);
+    doc.text('Ficha do Arguido em Prisao Preventiva', pageW / 2, y, { align: 'center' });
+    y += 10;
 
     // --- DADOS PESSOAIS ---
     doc.setTextColor(30, 58, 95);
