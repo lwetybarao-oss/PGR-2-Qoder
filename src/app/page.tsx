@@ -1054,11 +1054,14 @@ function ArguidosListView({
   const [selected, setSelected] = useState<string[]>([]);
   const [crimes, setCrimes] = useState<string[]>([]);
   const [magistrados, setMagistrados] = useState<string[]>([]);
+  const [fetchError, setFetchError] = useState('');
+  const [seeding, setSeeding] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { toast } = useToast();
 
   const fetchArguidos = useCallback(async (p: number, s: string, c: string, m: string, st: string) => {
     setLoading(true);
+    setFetchError('');
     try {
       const params = new URLSearchParams();
       params.set('page', String(p));
@@ -1071,13 +1074,19 @@ function ArguidosListView({
       const res = await fetch(`/api/arguidos?${params}`);
       if (res.ok) {
         const json = await res.json();
-        setArguidos(json.data);
+        setArguidos(json.data || []);
         setPage(json.pagination.page);
         setTotalPages(json.pagination.totalPages);
         setTotal(json.pagination.total);
+      } else {
+        const errData = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
+        setFetchError(errData.error || `Erro ${res.status}: ${res.statusText}`);
+        setArguidos([]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setFetchError(err.message || 'Erro de conexao com o servidor');
+      setArguidos([]);
     } finally {
       setLoading(false);
     }
@@ -1142,6 +1151,26 @@ function ArguidosListView({
       setSelected([]);
     } else {
       setSelected(arguidos.map(a => a.id));
+    }
+  };
+
+  const handleSeedData = async () => {
+    setSeeding(true);
+    try {
+      const res = await fetch('/api/seed', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        toast({ title: data.message || 'Dados carregados com sucesso!' });
+        fetchArguidos(1, '', '', '', '');
+        fetchFilters();
+      } else {
+        const errData = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
+        toast({ title: errData.error || 'Erro ao carregar dados', variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: err.message || 'Erro de conexao', variant: 'destructive' });
+    } finally {
+      setSeeding(false);
     }
   };
 
@@ -1258,10 +1287,27 @@ function ArguidosListView({
                       A carregar...
                     </TableCell>
                   </TableRow>
+                ) : fetchError ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-6">
+                      <div className="text-red-500 text-sm mb-3">Erro ao carregar dados: {fetchError}</div>
+                      <div className="flex items-center justify-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => fetchArguidos(page, search, crimeFilter, magistradoFilter, statusFilter)} className="text-xs">
+                          <RefreshCw className="w-3.5 h-3.5 mr-1" /> Tentar Novamente
+                        </Button>
+                        <Button size="sm" onClick={handleSeedData} disabled={seeding} className="bg-[#F9A601] hover:bg-[#FA812A] text-white text-xs">
+                          {seeding ? 'A carregar...' : 'Carregar Dados de Teste'}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : arguidos.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-gray-400">
-                      Nenhum arguido encontrado
+                    <TableCell colSpan={8} className="text-center py-6">
+                      <div className="text-gray-400 text-sm mb-3">Nenhum arguido encontrado</div>
+                      <Button size="sm" onClick={handleSeedData} disabled={seeding} className="bg-[#F9A601] hover:bg-[#FA812A] text-white text-xs">
+                        {seeding ? 'A carregar...' : 'Carregar Dados de Teste'}
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ) : (
