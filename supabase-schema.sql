@@ -66,7 +66,8 @@ CREATE TABLE IF NOT EXISTS alerta_prazos (
   tipo        VARCHAR(50) NOT NULL CHECK (tipo IN ('1_prazo', '2_prazo', 'sistema', 'manual')),
   mensagem    TEXT NOT NULL,
   lido        BOOLEAN DEFAULT false,
-  criado_em   TIMESTAMPTZ DEFAULT now()
+  criado_em   TIMESTAMPTZ DEFAULT now(),
+  criado_data DATE DEFAULT CURRENT_DATE
 );
 
 -- 5. TABELA: push_subscriptions
@@ -121,7 +122,8 @@ CREATE INDEX IF NOT EXISTS idx_alerta_prazos_arguido ON alerta_prazos(arguido_id
 CREATE INDEX IF NOT EXISTS idx_alerta_prazos_tipo ON alerta_prazos(tipo);
 CREATE INDEX IF NOT EXISTS idx_alerta_prazos_lido ON alerta_prazos(lido);
 CREATE INDEX IF NOT EXISTS idx_alerta_prazos_criado_em ON alerta_prazos(criado_em);
-CREATE INDEX IF NOT EXISTS idx_alerta_prazos_tipo_arguido_dia ON alerta_prazos(arguido_id, tipo, date(criado_em));
+-- Nota: Não usamos date(criado_em) em índice porque date() é STABLE, não IMMUTABLE
+-- A verificação de duplicados por dia é feita via range de timestamp nas queries
 
 CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
@@ -202,10 +204,10 @@ BEGIN
                      ' prazo a terminar: Faltam ' || v_dias || ' dia(s)';
       END IF;
 
-      -- Evitar duplicados no mesmo dia
+      -- Evitar duplicados no mesmo dia (usa coluna criado_data que é IMMUTABLE)
       SELECT COUNT(*) INTO v_existe FROM alerta_prazos
         WHERE arguido_id = arg_rec.id AND tipo = '1_prazo'
-        AND date(criado_em) = v_today;
+        AND criado_data = v_today;
 
       IF v_existe = 0 THEN
         INSERT INTO alerta_prazos (arguido_id, tipo, mensagem)
@@ -248,7 +250,7 @@ BEGIN
 
       SELECT COUNT(*) INTO v_existe FROM alerta_prazos
         WHERE arguido_id = arg_rec.id AND tipo = '2_prazo'
-        AND date(criado_em) = v_today;
+        AND criado_data = v_today;
 
       IF v_existe = 0 THEN
         INSERT INTO alerta_prazos (arguido_id, tipo, mensagem)
