@@ -1,30 +1,19 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-
-function addDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
-
-function diffDays(date1: Date, date2: Date): number {
-  const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
-  const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
-  return Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
-}
+import { calcPrazos, diffDays, addDays, todayNormalized, classificarUrgencia } from '@/lib/prazos';
 
 export async function GET() {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = todayNormalized();
 
     const arguidos = await db.arguido.findMany({
       where: { ativo: true },
       orderBy: { criadoEm: 'desc' }
     });
 
-    let alertasCriticos = 0;
-    let prazosVencidos = 0;
+    // Contar ARGUIDOS (não prazos) — cada arguido conta 1x no máximo
+    let prazosVencidos = 0;      // arguidos com pelo menos 1 prazo vencido
+    let alertasCriticos = 0;     // arguidos com pelo menos 1 prazo em alerta/critico (0-7 dias, não vencido)
     let totalProrrogados = 0;
 
     const crimesStats: Record<string, number> = {};
@@ -39,12 +28,17 @@ export async function GET() {
         totalProrrogados++;
       }
 
-      if (dias1 < 0) prazosVencidos++;
-      else if (dias1 <= 7) alertasCriticos++;
+      // Classificar cada prazo individualmente
+      const status1 = classificarUrgencia(dias1);
+      const status2 = dias2 !== null ? classificarUrgencia(dias2) : null;
 
-      if (dias2 !== null) {
-        if (dias2 < 0) prazosVencidos++;
-        else if (dias2 <= 7) alertasCriticos++;
+      // Verificar se TEM algum prazo vencido (conta o arguido 1x)
+      if (status1 === 'vencido' || status2 === 'vencido') {
+        prazosVencidos++;
+      }
+      // Verificar se TEM algum prazo em alerta/critico (conta o arguido 1x)
+      else if (status1 === 'critico' || status1 === 'alerta' || status2 === 'critico' || status2 === 'alerta') {
+        alertasCriticos++;
       }
 
       crimesStats[a.crime] = (crimesStats[a.crime] || 0) + 1;
@@ -54,18 +48,8 @@ export async function GET() {
       .map(([crime, count]) => ({ crime, count }))
       .sort((a, b) => b.count - a.count);
 
-    const recentArguidos = arguidos.slice(0, 5).map(a => {
-      const detDate = new Date(a.dataDetencao);
-      const dias1 = diffDays(today, addDays(detDate, 90));
-      let dias2: number | null = null;
-      if (a.dataProrrogacao) {
-        dias2 = diffDays(today, addDays(new Date(a.dataProrrogacao), 90));
-      }
-      let status = 'normal';
-      if (dias1 < 0 || (dias2 !== null && dias2 < 0)) status = 'vencido';
-      else if (dias1 <= 7 || (dias2 !== null && dias2 <= 7)) status = 'alerta';
-      return { ...a, diasRestantes1: dias1, diasRestantes2: dias2, statusPrazo: status };
-    });
+    // Recent arguidos com prazos calculados
+    const recentArguidos = arguidos.slice(0, 5).map(a => calcPrazos(a));
 
     const recentAlertas = await db.alertaPrazo.findMany({
       where: { lido: false },

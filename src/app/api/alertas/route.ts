@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { classificarUrgencia, diffDays, addDays, todayNormalized, calcPrazos } from '@/lib/prazos';
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,22 +32,51 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             nomeArguido: true,
-            numeroProcesso: true
+            numeroProcesso: true,
+            dataDetencao: true,
+            dataProrrogacao: true,
           }
         }
       },
       orderBy: { criadoEm: 'desc' }
     });
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Calcular urgência CORRECTAMENTE: baseada nos dias actuais do arguido,
+    // NÃO no texto da mensagem (como fazia antes - era frágil e impreciso).
+    // Isto coincide com a lógica do Django (core/views.py AlertasView).
+    const today = todayNormalized();
 
     const alertasWithUrgency = alertas.map(a => {
-      let urgencia = 'normal';
-      if (a.mensagem.includes('VENCIDO')) urgencia = 'vencido';
-      else if (a.mensagem.includes('HOJE') || a.mensagem.includes('3')) urgencia = 'critico';
-      else if (a.mensagem.includes('Faltam')) urgencia = 'alerta';
-      return { ...a, urgencia };
+      let dias: number | null = null;
+
+      if (a.arguido) {
+        const arguido = a.arguido;
+        if (a.tipo === '1_prazo') {
+          dias = diffDays(today, addDays(new Date(arguido.dataDetencao), 90));
+        } else if (a.tipo === '2_prazo' && arguido.dataProrrogacao) {
+          dias = diffDays(today, addDays(new Date(arguido.dataProrrogacao), 90));
+        }
+      }
+
+      // Fallback: se não conseguiu calcular do arguido, tenta inferir da mensagem
+      if (dias === null) {
+        if (a.mensagem.includes('VENCIDO')) dias = -1;
+        else if (a.mensagem.includes('HOJE')) dias = 0;
+        else if (a.mensagem.includes('Faltam')) {
+          const match = a.mensagem.match(/Faltam\s+(\d+)/);
+          dias = match ? parseInt(match[1]) : 5;
+        } else {
+          dias = 99;
+        }
+      }
+
+      const urgencia = classificarUrgencia(dias);
+
+      return {
+        ...a,
+        urgencia,
+        diasRestantes: dias,
+      };
     });
 
     const stats = {
@@ -54,6 +84,7 @@ export async function GET(request: NextRequest) {
       naoLidos: alertas.filter(a => !a.lido).length,
       lidos: alertas.filter(a => a.lido).length,
       vencidos: alertasWithUrgency.filter(a => a.urgencia === 'vencido').length,
+      criticos: alertasWithUrgency.filter(a => a.urgencia === 'critico').length,
     };
 
     return NextResponse.json({ data: alertasWithUrgency, stats });

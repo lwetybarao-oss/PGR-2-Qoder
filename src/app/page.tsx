@@ -151,6 +151,9 @@ function StatusBadge({ status }: { status: string }) {
   if (status === 'vencido') {
     return <Badge className="bg-red-100 text-red-800 border-red-300 hover:bg-red-100">Vencido</Badge>;
   }
+  if (status === 'critico') {
+    return <Badge className="bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-100">Crítico</Badge>;
+  }
   if (status === 'alerta') {
     return <Badge className="bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100">Alerta</Badge>;
   }
@@ -945,7 +948,8 @@ function ArguidosListView({
               <SelectContent>
                 <SelectItem value="__all">Todos os status</SelectItem>
                 <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="alerta">Alerta (≤7 dias)</SelectItem>
+                <SelectItem value="critico">Crítico (≤3 dias)</SelectItem>
+                <SelectItem value="alerta">Alerta (4-7 dias)</SelectItem>
                 <SelectItem value="vencido">Vencido</SelectItem>
               </SelectContent>
             </Select>

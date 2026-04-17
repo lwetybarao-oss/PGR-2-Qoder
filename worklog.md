@@ -92,3 +92,27 @@ Stage Summary:
 - Navigation flow: Landing → Pesquisa Publica → Search results (read-only)
 - Logout redirects back to landing page
 - All changes made to /home/z/my-project/src/app/page.tsx
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Audit and fix all prazo calculations and alert control system
+
+Work Log:
+- Audited all calculation logic against original Django code (models.py, services.py)
+- Found 7 bugs/defeitos and fixed all of them
+- Created shared utility src/lib/prazos.ts with correct 4-level urgency system
+- Fixed Dashboard double-counting (now counts arguidos, not individual prazos)
+- Fixed statusPrazo filter applied after pagination (now applied before)
+- Added future date validation to PUT handler
+- Replaced fragile text-parsing urgency with computation from arguido's actual data
+- Updated seed data with current 2026 dates for realistic testing
+- Added 'critico' badge and filter to frontend
+- All 15 arguidos verified: ✅ correct status for all
+
+Stage Summary:
+- Files modified: src/lib/prazos.ts (NEW), src/app/api/arguidos/route.ts, src/app/api/arguidos/[id]/route.ts, src/app/api/alertas/route.ts, src/app/api/alertas/verificar/route.ts, src/app/api/dashboard/route.ts, src/app/api/seed/route.ts, src/app/page.tsx
+- 4 urgency levels now matching Django: vencido (<0d), critico (0-3d), alerta (4-7d), normal (>7d)
+- Dashboard: 3 vencidos, 4 alertas criticos, 8 normal (no double-counting)
+- Alert verification creates alerts with proper urgency classification and dedup per day
+- All status filters (vencido/critico/alerta/normal) return correct results with accurate pagination

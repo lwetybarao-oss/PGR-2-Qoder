@@ -1,51 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-
-function addDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
-
-function diffDays(date1: Date, date2: Date): number {
-  const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
-  const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
-  return Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-function calcPrazos(arguido: any) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const detDate = new Date(arguido.dataDetencao);
-  const fim1Prazo = addDays(detDate, 90);
-  const diasRestantes1 = diffDays(today, fim1Prazo);
-
-  let fim2Prazo: Date | null = null;
-  let diasRestantes2: number | null = null;
-
-  if (arguido.dataProrrogacao) {
-    const prorDate = new Date(arguido.dataProrrogacao);
-    fim2Prazo = addDays(prorDate, 90);
-    diasRestantes2 = diffDays(today, fim2Prazo);
-  }
-
-  let statusPrazo = 'normal';
-  if (diasRestantes1 < 0 || (diasRestantes2 !== null && diasRestantes2 < 0)) {
-    statusPrazo = 'vencido';
-  } else if (diasRestantes1 <= 7 || (diasRestantes2 !== null && diasRestantes2 <= 7)) {
-    statusPrazo = 'alerta';
-  }
-
-  return {
-    ...arguido,
-    fim1Prazo,
-    fim2Prazo,
-    diasRestantes1,
-    diasRestantes2,
-    statusPrazo
-  };
-}
+import { calcPrazos, classificarUrgencia, todayNormalized } from '@/lib/prazos';
 
 export async function GET(request: NextRequest) {
   try {
@@ -88,29 +43,63 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const [arguidos, total] = await Promise.all([
-      db.arguido.findMany({
-        where,
-        orderBy: { criadoEm: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit
-      }),
-      db.arguido.count({ where })
-    ]);
+    // Se há filtro de status_prazo, precisamos buscar todos e filtrar na aplicação
+    // (o status é calculado, não está na BD)
+    const useStatusFilter = statusPrazo && ['normal', 'alerta', 'critico', 'vencido'].includes(statusPrazo);
 
-    let result = arguidos.map(a => calcPrazos(a));
+    // Se filtramos por status, buscar sem paginação primeiro para ter contagens correctas
+    const allArguidos = useStatusFilter
+      ? await db.arguido.findMany({
+          where,
+          orderBy: { criadoEm: 'desc' },
+        })
+      : [];
 
-    if (statusPrazo) {
-      result = result.filter(a => a.statusPrazo === statusPrazo);
+    let resultWithPrazos = useStatusFilter
+      ? allArguidos.map(a => calcPrazos(a))
+      : [];
+
+    // Aplicar filtro de status ANTES da paginação
+    if (useStatusFilter) {
+      if (statusPrazo === 'alerta') {
+        // "alerta" no filtro inclui critico e alerta (0-7 dias, não vencido)
+        resultWithPrazos = resultWithPrazos.filter(a =>
+          a.statusPrazo === 'alerta' || a.statusPrazo === 'critico'
+        );
+      } else {
+        resultWithPrazos = resultWithPrazos.filter(a => a.statusPrazo === statusPrazo);
+      }
+    }
+
+    const total = useStatusFilter
+      ? resultWithPrazos.length
+      : await db.arguido.count({ where });
+
+    const totalPages = Math.ceil(total / limit);
+
+    // Paginação aplicada APÓS o filtro de status
+    let data: any[];
+    if (useStatusFilter) {
+      data = resultWithPrazos.slice((page - 1) * limit, page * limit);
+    } else {
+      const [arguidos] = await Promise.all([
+        db.arguido.findMany({
+          where,
+          orderBy: { criadoEm: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit
+        }),
+      ]);
+      data = arguidos.map(a => calcPrazos(a));
     }
 
     return NextResponse.json({
-      data: result,
+      data,
       pagination: {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages
       }
     });
   } catch (error) {
@@ -155,8 +144,7 @@ export async function POST(request: NextRequest) {
 
     const detDate = new Date(dataDetencao);
     detDate.setHours(0, 0, 0, 0);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = todayNormalized();
 
     if (detDate > today) {
       return NextResponse.json({ error: 'A data de detenção não pode ser futura.' }, { status: 400 });
