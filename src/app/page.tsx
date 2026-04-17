@@ -986,7 +986,7 @@ function ArguidosListView({
                   <TableHead className="text-xs hidden lg:table-cell">Magistrado</TableHead>
                   <TableHead className="text-xs hidden sm:table-cell">Detenção</TableHead>
                   <TableHead className="text-xs">Status</TableHead>
-                  <TableHead className="text-xs w-24">Ações</TableHead>
+                  <TableHead className="text-xs w-28">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1036,6 +1036,20 @@ function ArguidosListView({
                             title="Editar"
                           >
                             <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => {
+                              const link = document.createElement('a');
+                              link.href = `/api/arguidos/${a.id}/ficha-pdf`;
+                              link.target = '_blank';
+                              link.click();
+                            }}
+                            title="Ficha PDF"
+                          >
+                            <Download className="w-3.5 h-3.5" />
                           </Button>
                         </div>
                       </TableCell>

@@ -134,3 +134,28 @@ Stage Summary:
 - Two prazo previews added to the Novo Arguido form with blue text styling
 - Filter labels cleaned up: "Crítico (≤3 dias)" → "Crítico", "Alerta (4-7 dias)" → "Alerta"
 - Build passes without errors
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Create ficha PDF do arguido with Angola insignia header and complete info
+
+Work Log:
+- Created Angola emblem SVG and converted to PNG (public/angola-emblem.png)
+- Created Python PDF generation script (scripts/generate_ficha.py) using ReportLab
+  - Professional header: Angola emblem + REPUBLICA DE ANGOLA / PROCURADORIA-GERAL DA REPUBLICA / PGR-Lunda-Sul
+  - Gold separator line
+  - Sections: Dados Pessoais, Dados Processuais, Cronologia, Gestao de Prazos e Alertas, Procedimentos, Medidas Aplicadas, Observacoes, Historico de Alertas
+  - 1o and 2o prazo cards with colored status badges (Vencido=red, Critico=orange, Alerta=amber, Normal=green)
+  - Alertas table with urgency color coding
+  - Footer with generation timestamp
+- Created API route /api/arguidos/[id]/ficha-pdf that calls Python script and returns PDF
+- Added PDF download button (Download icon) in Arguidos table actions column
+- Widened actions column from w-24 to w-28
+- Build passes with new ficha-pdf route visible
+
+Stage Summary:
+- PDF ficha generation fully working with institutional header
+- Button available in every row of "Arguidos em Prisao Preventiva" table
+- Uses Calibri fonts, minimal gold accents, clean professional design
+- All status/alertas properly color-coded
