@@ -2818,6 +2818,11 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Alert Status Overlay - shows after login with 15s auto-close */}
+      {showAlertOverlay && (
+        <AlertaPrazosOverlay onClose={() => setShowAlertOverlay(false)} />
+      )}
     </div>
   );
 }
