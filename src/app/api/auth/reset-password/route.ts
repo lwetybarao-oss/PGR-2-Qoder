@@ -8,14 +8,14 @@ export async function POST(request: NextRequest) {
 
     if (!token || !newPassword) {
       return NextResponse.json(
-        { error: 'Token e nova senha são obrigatórios.' },
+        { error: 'Token e nova palavra-passe são obrigatórios.' },
         { status: 400 }
       );
     }
 
     if (newPassword.length < 6) {
       return NextResponse.json(
-        { error: 'A senha deve ter pelo menos 6 caracteres.' },
+        { error: 'A palavra-passe deve ter pelo menos 6 caracteres.' },
         { status: 400 }
       );
     }
@@ -34,7 +34,6 @@ export async function POST(request: NextRequest) {
 
     // Verificar se não expirou
     if (new Date(resetToken.expires_at) < new Date()) {
-      // Marcar como usado
       await supabase
         .from('password_reset_tokens')
         .update({ used: true })
@@ -43,59 +42,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Token expirado. Solicite um novo.' }, { status: 400 });
     }
 
-    // Hash da nova senha
+    // Hash da nova palavra-passe
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Actualizar senha do utilizador - usar RPC para evitar triggers problemáticas
-    // Tentar via RPC primeiro, se existir
-    const { data: rpcResult, error: rpcError } = await supabase
-      .rpc('reset_user_password', {
-        p_user_id: resetToken.user_id,
-        p_new_password: hashedPassword
-      });
+    // Actualizar senha do utilizador
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ password: hashedPassword })
+      .eq('id', resetToken.user_id);
 
-    // Se RPC não existe, tentar via update directo
-    if (rpcError) {
-      // Workaround: incluir updated_at explicitamente para evitar erro da trigger
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ 
-          password: hashedPassword,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', resetToken.user_id);
-
-      if (updateError) {
-        // Se ainda falhar, tentar sem trigger via raw SQL simulado
-        console.error('Update error details:', JSON.stringify(updateError));
-        
-        // Último recurso: tentar update com header para desactivar triggers
-        const { error: retryError } = await supabase
-          .from('users')
-          .update({ password: hashedPassword })
-          .eq('id', resetToken.user_id)
-          .select('id');
-
-        if (retryError) {
-          throw new Error(`Falha ao actualizar: ${retryError.message}`);
-        }
-      }
+    if (updateError) {
+      console.error('Update password error:', JSON.stringify(updateError));
+      return NextResponse.json(
+        { error: `Erro ao actualizar: ${updateError.message}` },
+        { status: 500 }
+      );
     }
 
     // Marcar token como usado
     await supabase
       .from('password_reset_tokens')
-      .update({ used: true, updated_at: new Date().toISOString() })
+      .update({ used: true })
       .eq('id', resetToken.id);
 
     return NextResponse.json({
       success: true,
-      message: 'Senha redefinida com sucesso. Pode agora fazer login.'
+      message: 'Palavra-passe redefinida com sucesso. Pode agora fazer login.'
     });
   } catch (error: any) {
     console.error('Reset password error:', error);
-    return NextResponse.json({ 
-      error: 'Erro ao redefinir senha. Contacte o administrador ou tente novamente.' 
-    }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao redefinir palavra-passe.' }, { status: 500 });
   }
 }
