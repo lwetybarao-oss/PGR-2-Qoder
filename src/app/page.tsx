@@ -255,18 +255,17 @@ function LandingView({ onNavigate }: { onNavigate: (v: ViewType) => void }) {
 // ============================================================
 
 function PesquisaPublicaView({ onBack }: { onBack: () => void }) {
-  const [query, setQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [results, setResults] = useState<Arguido[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
   const doSearch = async () => {
-    if (!query.trim()) return;
+    if (!searchInput.trim()) return;
     setLoading(true);
     setSearched(true);
     try {
-      const params = new URLSearchParams({ q: query.trim(), limit: '50' });
+      const params = new URLSearchParams({ q: searchInput.trim(), limit: '50' });
       const res = await fetch(`/api/arguidos?${params}`);
       if (res.ok) {
         const json = await res.json();
@@ -476,6 +475,11 @@ function LoginView({ onLogin, onBack }: { onLogin: (user: User) => void; onBack:
             </form>
             <div className="mt-4 text-center text-xs text-gray-400">
               Credenciais de demonstração: admin / admin123
+            </div>
+            <div className="mt-3 text-center">
+              <button onClick={onBack} className="text-sm text-gray-500 hover:text-gray-700 hover:underline">
+                Voltar a pagina inicial
+              </button>
             </div>
           </CardContent>
         </Card>
@@ -1951,7 +1955,7 @@ function RelatorioContent({ tipo }: { tipo: string }) {
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState<ViewType>('login');
+  const [view, setView] = useState<ViewType>('landing');
   const [authChecked, setAuthChecked] = useState(false);
   const [selectedArguidoId, setSelectedArguidoId] = useState<string | null>(null);
   const [alertCount, setAlertCount] = useState(0);
@@ -2012,7 +2016,7 @@ export default function Home() {
   const handleLogout = async () => {
     await fetch('/api/auth/login', { method: 'DELETE' });
     setUser(null);
-    setView('login');
+    setView('landing');
     toast({ title: 'Sessão terminada' });
   };
 
@@ -2048,8 +2052,16 @@ export default function Home() {
     );
   }
 
+  if (view === 'landing') {
+    return <LandingView onNavigate={setView} />;
+  }
+
+  if (view === 'pesquisa-publica') {
+    return <PesquisaPublicaView onBack={() => setView('landing')} />;
+  }
+
   if (!user || view === 'login') {
-    return <LoginView onLogin={handleLogin} />;
+    return <LoginView onLogin={handleLogin} onBack={() => setView('landing')} />;
   }
 
   return (

@@ -66,3 +66,29 @@ Complete rewrite of the PGR Django system into Next.js 16 with App Router, Prism
 - `bun run db:push`: Successfully synced schema
 - Dev server: Compiling and serving pages correctly (200 status)
 - Seed endpoint: Completed successfully (POST /api/seed returned 200)
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix missing landing page - public search and "Acessar o Sistema" button
+
+Work Log:
+- Analyzed the existing SPA architecture in page.tsx (2099 lines, all views in one file)
+- Found LandingView and PesquisaPublicaView components already existed but were never rendered
+- Root cause: initial view state was set to 'login' instead of 'landing' (line 1954)
+- Root cause: render logic at line 2051 skipped landing/pesquisa-publica views entirely
+- Fixed initial view state: useState<ViewType>('login') → useState<ViewType>('landing')
+- Added proper routing for 'landing' and 'pesquisa-publica' views before auth check
+- Added onBack prop to LoginView to navigate back to landing
+- Fixed PesquisaPublicaView search bug (query variable not synced with searchInput)
+- Changed handleLogout to redirect to 'landing' instead of 'login'
+- Added "Voltar a pagina inicial" button to login form
+- Build successful, server running on port 3000 with HTTP 200
+
+Stage Summary:
+- Landing page now shows as the default view at /
+- Public search works without authentication via /api/arguidos (no auth required)
+- Navigation flow: Landing → Login (Acessar Sistema) → Dashboard
+- Navigation flow: Landing → Pesquisa Publica → Search results (read-only)
+- Logout redirects back to landing page
+- All changes made to /home/z/my-project/src/app/page.tsx
