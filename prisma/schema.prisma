@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  password      String
+  name          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Arguido {
+  id                    String   @id @default(cuid())
+  numeroProcesso        String   @unique
+  nomeArguido           String
+  filiacaoPai           String?
+  filiacaoMae           String?
+  dataDetencao          DateTime
+  dataRemessaJg         DateTime?
+  dataRegresso          DateTime?
+  crime                 String
+  medidasAplicadas      String?
+  magistradoResponsavel String
+  dataRemessaSic        DateTime?
+  dataProrrogacao       DateTime?
+  remessaJgAlteracao    DateTime?
+  observacao1           String?
+  observacao2           String?
+  ativo                 Boolean  @default(true)
+  criadoEm              DateTime @default(now())
+  atualizadoEm          DateTime @updatedAt
+  alertas               AlertaPrazo[]
+}
+
+model AlertaPrazo {
+  id          String   @id @default(cuid())
+  arguidoId   String
+  arguido     Arguido  @relation(fields: [arguidoId], references: [id], onDelete: Cascade)
+  tipo        String
+  mensagem    String
+  lido        Boolean  @default(false)
+  criadoEm    DateTime @default(now())
+}
