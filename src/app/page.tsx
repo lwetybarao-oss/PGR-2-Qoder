@@ -868,9 +868,10 @@ function Footer() {
 // Dashboard View
 // ============================================================
 
-function DashboardView({ onNavigate, onVerificarPrazos }: { onNavigate: (v: ViewType) => void; onVerificarPrazos: () => void }) {
+function DashboardView({ onNavigate, onVerificarPrazos, onSelectArguido }: { onNavigate: (v: ViewType) => void; onVerificarPrazos: () => void; onSelectArguido: (id: string) => void }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [modalArguidoId, setModalArguidoId] = useState<string | null>(null);
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -1014,8 +1015,8 @@ function DashboardView({ onNavigate, onVerificarPrazos }: { onNavigate: (v: View
                 {data.recentArguidos.map(a => (
                   <TableRow
                     key={a.id}
-                    className="cursor-pointer"
-                    onClick={() => onNavigate('arguido-detail')}
+                    className="cursor-pointer hover:bg-blue-50/50"
+                    onClick={() => setModalArguidoId(a.id)}
                   >
                     <TableCell className="text-xs font-medium">{a.numeroProcesso}</TableCell>
                     <TableCell className="text-xs">{a.nomeArguido}</TableCell>
@@ -1029,6 +1030,20 @@ function DashboardView({ onNavigate, onVerificarPrazos }: { onNavigate: (v: View
           </div>
         </CardContent>
       </Card>
+
+      {/* Arguido Detail Modal */}
+      <ArguidoDetailModal
+        arguidoId={modalArguidoId}
+        open={!!modalArguidoId}
+        onClose={() => setModalArguidoId(null)}
+        onEdit={(id) => {
+          setModalArguidoId(null);
+          onSelectArguido(id);
+        }}
+        onDelete={() => {
+          setModalArguidoId(null);
+        }}
+      />
     </div>
   );
 }
@@ -2207,11 +2222,14 @@ function RelatoriosView() {
 function RelatorioContent({ tipo }: { tipo: string }) {
   const [arguidos, setArguidos] = useState<Arguido[]>([]);
   const [loading, setLoading] = useState(true);
+  const [modalArguidoId, setModalArguidoId] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    fetch('/api/arguidos?limit=1000')
-      .then(res => res.json())
-      .then(json => {
+  const fetchArguidos = useCallback(async () => {
+    try {
+      const res = await fetch('/api/arguidos?limit=1000');
+      if (res.ok) {
+        const json = await res.json();
         let filtered = json.data || [];
         if (tipo === 'proximos') {
           filtered = filtered.filter((a: Arguido) => a.diasRestantes1 <= 14 || (a.diasRestantes2 !== null && a.diasRestantes2 <= 14));
@@ -2219,56 +2237,429 @@ function RelatorioContent({ tipo }: { tipo: string }) {
           filtered = filtered.filter((a: Arguido) => a.diasRestantes1 < 0 || (a.diasRestantes2 !== null && a.diasRestantes2 < 0));
         }
         setArguidos(filtered);
-      })
-      .catch(err => console.error(err))
-      .finally(() => setLoading(false));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, [tipo]);
+
+  useEffect(() => { fetchArguidos(); }, [fetchArguidos]);
+
+  const handleModalDelete = async (deletedId: string) => {
+    setModalArguidoId(null);
+    setArguidos(prev => prev.filter(a => a.id !== deletedId));
+    toast({ title: 'Arguido removido com sucesso' });
+  };
 
   if (loading) return <div className="text-center py-4 text-gray-400 text-sm">A carregar...</div>;
 
   if (arguidos.length === 0) {
-    return <p className="text-sm text-gray-400 text-center py-4">Nenhum registo encontrado para este relatório.</p>;
+    return <p className="text-sm text-gray-400 text-center py-4">Nenhum registo encontrado para este relatorio.</p>;
   }
 
   return (
-    <div className="overflow-x-auto max-h-96 overflow-y-auto">
-      <Table>
-        <TableHeader className="sticky top-0 bg-white z-10">
-          <TableRow className="hover:bg-transparent">
-            <TableHead className="text-xs">Processo</TableHead>
-            <TableHead className="text-xs">Nome</TableHead>
-            <TableHead className="text-xs hidden md:table-cell">Crime</TableHead>
-            <TableHead className="text-xs hidden lg:table-cell">Magistrado</TableHead>
-            {tipo !== 'geral' && <TableHead className="text-xs">Detenção</TableHead>}
-            <TableHead className="text-xs">Fim 1º Prazo</TableHead>
-            <TableHead className="text-xs">Dias 1º</TableHead>
-            <TableHead className="text-xs">Fim 2º Prazo</TableHead>
-            <TableHead className="text-xs">Dias 2º</TableHead>
-            <TableHead className="text-xs">Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {arguidos.map(a => (
-            <TableRow key={a.id}>
-              <TableCell className="text-xs font-medium">{a.numeroProcesso}</TableCell>
-              <TableCell className="text-xs">{a.nomeArguido}</TableCell>
-              <TableCell className="text-xs hidden md:table-cell">{a.crime}</TableCell>
-              <TableCell className="text-xs hidden lg:table-cell">{a.magistradoResponsavel}</TableCell>
-              {tipo !== 'geral' && <TableCell className="text-xs">{formatDate(a.dataDetencao)}</TableCell>}
-              <TableCell className="text-xs">{formatDate(a.fim1Prazo)}</TableCell>
-              <TableCell className={`text-xs font-medium ${a.diasRestantes1 < 0 ? 'text-red-600' : a.diasRestantes1 <= 7 ? 'text-amber-600' : ''}`}>
-                {a.diasRestantes1}
-              </TableCell>
-              <TableCell className="text-xs">{a.fim2Prazo ? formatDate(a.fim2Prazo) : '-'}</TableCell>
-              <TableCell className={`text-xs font-medium ${a.diasRestantes2 !== null && a.diasRestantes2 < 0 ? 'text-red-600' : a.diasRestantes2 !== null && a.diasRestantes2 <= 7 ? 'text-amber-600' : ''}`}>
-                {a.diasRestantes2 !== null ? a.diasRestantes2 : '-'}
-              </TableCell>
-              <TableCell><StatusBadge status={a.statusPrazo} /></TableCell>
+    <>
+      <div className="overflow-x-auto max-h-96 overflow-y-auto">
+        <Table>
+          <TableHeader className="sticky top-0 bg-white z-10">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="text-xs">Processo</TableHead>
+              <TableHead className="text-xs">Nome</TableHead>
+              <TableHead className="text-xs hidden md:table-cell">Crime</TableHead>
+              <TableHead className="text-xs hidden lg:table-cell">Magistrado</TableHead>
+              {tipo !== 'geral' && <TableHead className="text-xs">Detencao</TableHead>}
+              <TableHead className="text-xs">Fim 1o Prazo</TableHead>
+              <TableHead className="text-xs">Dias 1o</TableHead>
+              <TableHead className="text-xs">Fim 2o Prazo</TableHead>
+              <TableHead className="text-xs">Dias 2o</TableHead>
+              <TableHead className="text-xs">Status</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {arguidos.map(a => (
+              <TableRow key={a.id} className="cursor-pointer hover:bg-blue-50/50" onClick={() => setModalArguidoId(a.id)}>
+                <TableCell className="text-xs font-medium">{a.numeroProcesso}</TableCell>
+                <TableCell className="text-xs">{a.nomeArguido}</TableCell>
+                <TableCell className="text-xs hidden md:table-cell">{a.crime}</TableCell>
+                <TableCell className="text-xs hidden lg:table-cell">{a.magistradoResponsavel}</TableCell>
+                {tipo !== 'geral' && <TableCell className="text-xs">{formatDate(a.dataDetencao)}</TableCell>}
+                <TableCell className="text-xs">{formatDate(a.fim1Prazo)}</TableCell>
+                <TableCell className={`text-xs font-medium ${a.diasRestantes1 < 0 ? 'text-red-600' : a.diasRestantes1 <= 7 ? 'text-amber-600' : ''}`}>
+                  {a.diasRestantes1}
+                </TableCell>
+                <TableCell className="text-xs">{a.fim2Prazo ? formatDate(a.fim2Prazo) : '-'}</TableCell>
+                <TableCell className={`text-xs font-medium ${a.diasRestantes2 !== null && a.diasRestantes2 < 0 ? 'text-red-600' : a.diasRestantes2 !== null && a.diasRestantes2 <= 7 ? 'text-amber-600' : ''}`}>
+                  {a.diasRestantes2 !== null ? a.diasRestantes2 : '-'}
+                </TableCell>
+                <TableCell><StatusBadge status={a.statusPrazo} /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Arguido Detail Modal for Relatorios */}
+      <ArguidoDetailModal
+        arguidoId={modalArguidoId}
+        open={!!modalArguidoId}
+        onClose={() => setModalArguidoId(null)}
+        onEdit={() => {
+          setModalArguidoId(null);
+          toast({ title: 'Para editar, utilize a seccao Arguidos no menu lateral.' });
+        }}
+        onDelete={handleModalDelete}
+      />
+    </>
+  );
+}
+
+// ============================================================
+// Arguido Detail Modal - Reusable floating panel
+// ============================================================
+
+function ArguidoDetailModal({
+  arguidoId,
+  open,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  arguidoId: string | null;
+  open: boolean;
+  onClose: () => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [data, setData] = useState<Arguido | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (!open || !arguidoId) {
+      setData(null);
+      return;
+    }
+    setLoading(true);
+    fetch(`/api/arguidos/${arguidoId}`)
+      .then(res => res.json())
+      .then(json => { if (json.data) setData(json.data); })
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, [open, arguidoId]);
+
+  const handleDelete = async () => {
+    if (!arguidoId) return;
+    try {
+      const res = await fetch(`/api/arguidos/${arguidoId}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast({ title: 'Arguido removido com sucesso' });
+        onDelete(arguidoId);
+      }
+    } catch {
+      toast({ title: 'Erro ao remover', variant: 'destructive' });
+    }
+    setShowDeleteDialog(false);
+  };
+
+  const handleEdit = () => {
+    if (arguidoId) onEdit(arguidoId);
+  };
+
+  const handleDownloadPDF = () => {
+    if (!arguidoId) return;
+    const link = document.createElement('a');
+    link.href = `/api/arguidos/${arguidoId}/ficha-pdf`;
+    link.target = '_blank';
+    link.click();
+  };
+
+  if (!open) return null;
+
+  const prazo1Color = data ? (data.diasRestantes1 < 0 ? 'text-red-700 bg-red-50 border-red-200' :
+    data.diasRestantes1 <= 7 ? 'text-amber-700 bg-amber-50 border-amber-200' :
+    'text-green-700 bg-green-50 border-green-200') : '';
+
+  const prazo2Color = data ? (data.diasRestantes2 === null ? '' :
+    data.diasRestantes2 < 0 ? 'text-red-700 bg-red-50 border-red-200' :
+    data.diasRestantes2 <= 7 ? 'text-amber-700 bg-amber-50 border-amber-200' :
+    'text-green-700 bg-green-50 border-green-200') : '';
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Modal Panel */}
+      <div className="fixed inset-0 z-[90] flex items-start justify-center pt-[5vh] pb-[5vh] pointer-events-none">
+        <div className="bg-white rounded-xl shadow-2xl border border-gray-200 w-full max-w-4xl mx-4 flex flex-col max-h-[90vh] pointer-events-auto">
+          {/* Modal Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="bg-[#1e3a5f] rounded-lg p-2">
+                <UserCircle className="w-5 h-5 text-[#F9A601]" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {loading ? 'A carregar...' : data ? data.nomeArguido : 'Detalhes do Arguido'}
+                </h3>
+                {data && (
+                  <p className="text-xs text-gray-500">Processo: {data.numeroProcesso}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {data && <StatusBadge status={data.statusPrazo} />}
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Modal Body - Scrollable */}
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="text-gray-400 animate-pulse">A carregar dados do arguido...</div>
+              </div>
+            ) : !data ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="text-gray-400">Arguido nao encontrado.</div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Prazo Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Card className={`border ${prazo1Color}`}>
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-medium opacity-70">1o Prazo (90 dias)</p>
+                          <p className="text-base font-bold mt-1">
+                            {data.diasRestantes1 < 0
+                              ? `Vencido ha ${Math.abs(data.diasRestantes1)} dia(s)`
+                              : data.diasRestantes1 === 0
+                              ? 'Vence hoje!'
+                              : `${data.diasRestantes1} dia(s) restantes`}
+                          </p>
+                          <p className="text-xs mt-1">Fim: {formatDate(data.fim1Prazo)}</p>
+                        </div>
+                        <CalendarClock className="w-7 h-7 opacity-40" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  {data.diasRestantes2 !== null ? (
+                    <Card className={`border ${prazo2Color}`}>
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-medium opacity-70">2o Prazo (90 dias)</p>
+                            <p className="text-base font-bold mt-1">
+                              {data.diasRestantes2 < 0
+                                ? `Vencido ha ${Math.abs(data.diasRestantes2)} dia(s)`
+                                : data.diasRestantes2 === 0
+                                ? 'Vence hoje!'
+                                : `${data.diasRestantes2} dia(s) restantes`}
+                            </p>
+                            <p className="text-xs mt-1">Fim: {formatDate(data.fim2Prazo!)}</p>
+                          </div>
+                          <CalendarClock className="w-7 h-7 opacity-40" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card className="border border-gray-200 bg-gray-50">
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-center h-full">
+                          <p className="text-xs text-gray-400">2o Prazo nao definido</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+
+                {/* Detail Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Identificacao */}
+                  <Card className="border-gray-100">
+                    <CardHeader className="pb-2 px-4 pt-3">
+                      <CardTitle className="text-sm font-semibold text-gray-700">Identificacao</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3 pt-0">
+                      <dl className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <dt className="text-gray-500">N. Processo</dt>
+                          <dd className="font-medium text-gray-900">{data.numeroProcesso}</dd>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between text-sm">
+                          <dt className="text-gray-500">Nome</dt>
+                          <dd className="font-medium text-gray-900">{data.nomeArguido}</dd>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between text-sm">
+                          <dt className="text-gray-500">Filiacao (Pai)</dt>
+                          <dd className="text-gray-700">{data.filiacaoPai || '-'}</dd>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between text-sm">
+                          <dt className="text-gray-500">Filiacao (Mae)</dt>
+                          <dd className="text-gray-700">{data.filiacaoMae || '-'}</dd>
+                        </div>
+                      </dl>
+                    </CardContent>
+                  </Card>
+
+                  {/* Informacoes Juridicas */}
+                  <Card className="border-gray-100">
+                    <CardHeader className="pb-2 px-4 pt-3">
+                      <CardTitle className="text-sm font-semibold text-gray-700">Informacoes Juridicas</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3 pt-0">
+                      <dl className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <dt className="text-gray-500">Crime</dt>
+                          <dd className="font-medium text-gray-900">{data.crime}</dd>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between text-sm">
+                          <dt className="text-gray-500">Magistrado</dt>
+                          <dd className="font-medium text-gray-900">{data.magistradoResponsavel}</dd>
+                        </div>
+                        <Separator />
+                        <div className="text-sm">
+                          <dt className="text-gray-500">Medidas Aplicadas</dt>
+                          <dd className="mt-1 text-gray-700">{data.medidasAplicadas || '-'}</dd>
+                        </div>
+                      </dl>
+                    </CardContent>
+                  </Card>
+
+                  {/* Cronologia */}
+                  <Card className="border-gray-100">
+                    <CardHeader className="pb-2 px-4 pt-3">
+                      <CardTitle className="text-sm font-semibold text-gray-700">Cronologia</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3 pt-0">
+                      <dl className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <dt className="text-gray-500">Data de Detencao</dt>
+                          <dd className="font-medium text-gray-900">{formatDate(data.dataDetencao)}</dd>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between text-sm">
+                          <dt className="text-gray-500">Remessa ao JG</dt>
+                          <dd className="text-gray-700">{formatDate(data.dataRemessaJg)}</dd>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between text-sm">
+                          <dt className="text-gray-500">Data de Regresso</dt>
+                          <dd className="text-gray-700">{formatDate(data.dataRegresso)}</dd>
+                        </div>
+                      </dl>
+                    </CardContent>
+                  </Card>
+
+                  {/* Gestao de Prazos */}
+                  <Card className="border-gray-100">
+                    <CardHeader className="pb-2 px-4 pt-3">
+                      <CardTitle className="text-sm font-semibold text-gray-700">Gestao de Prazos</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3 pt-0">
+                      <dl className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <dt className="text-gray-500">Remessa ao SIC</dt>
+                          <dd className="text-gray-700">{formatDate(data.dataRemessaSic)}</dd>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between text-sm">
+                          <dt className="text-gray-500">Data de Prorrogacao</dt>
+                          <dd className="text-gray-700">{formatDate(data.dataProrrogacao)}</dd>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between text-sm">
+                          <dt className="text-gray-500">Remessa JG / Alteracao</dt>
+                          <dd className="text-gray-700">{formatDate(data.remessaJgAlteracao)}</dd>
+                        </div>
+                      </dl>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Observacoes */}
+                {(data.observacao1 || data.observacao2) && (
+                  <Card className="border-gray-100">
+                    <CardHeader className="pb-2 px-4 pt-3">
+                      <CardTitle className="text-sm font-semibold text-gray-700">Observacoes</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3 pt-0 space-y-2">
+                      {data.observacao1 && <p className="text-sm text-gray-700">{data.observacao1}</p>}
+                      {data.observacao2 && <p className="text-sm text-gray-700">{data.observacao2}</p>}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Modal Footer - CRUD Buttons */}
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEdit}
+                className="text-xs h-9 border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#1e3a5f] hover:text-white"
+              >
+                <Pencil className="w-4 h-4 mr-1.5" /> Editar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadPDF}
+                className="text-xs h-9 border-[#F9A601] text-[#F9A601] hover:bg-[#F9A601] hover:text-white"
+              >
+                <Download className="w-4 h-4 mr-1.5" /> Ficha PDF
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowDeleteDialog(true)}
+                className="text-xs h-9"
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" /> Eliminar
+              </Button>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="text-xs h-9 text-gray-500"
+            >
+              Fechar
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Remocao</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja remover o arguido <strong>{data?.nomeArguido}</strong>? Esta accao pode ser revertida por um administrador.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="text-sm">Cancelar</Button>
+            <Button variant="destructive" onClick={handleDelete} className="text-sm">Remover</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -2769,7 +3160,7 @@ export default function Home() {
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
         {view === 'dashboard' && (
-          <DashboardView onNavigate={handleNavigate} onVerificarPrazos={handleVerificarPrazos} />
+          <DashboardView onNavigate={handleNavigate} onVerificarPrazos={handleVerificarPrazos} onSelectArguido={handleSelectArguido} />
         )}
 
         {view === 'arguidos' && (
