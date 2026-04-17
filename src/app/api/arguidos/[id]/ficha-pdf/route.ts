@@ -37,123 +37,122 @@ export async function GET(
     const margin = 20;
     const contentW = pageW - margin * 2;
 
-    // --- CABECALHO (sem cor de fundo) ---
-    let y = 15;
+    // --- CABECALHO ---
+    let y = 10;
 
     // Insignia PGR (base64 embutido) - imagem 367x415, aspect ratio 0.884
-    const insigniaW = 30;
-    const insigniaH = 34;
+    const insigniaW = 20;
+    const insigniaH = 23;
     doc.addImage(INSIGNIA_B64, 'PNG', pageW / 2 - insigniaW / 2, y, insigniaW, insigniaH);
-    y += insigniaH + 4;
+    y += insigniaH + 6;
 
     doc.setTextColor(30, 58, 95); // #1e3a5f
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('PGR - Procuradoria-Geral da Republica', pageW / 2, y, { align: 'center' });
-    y += 6;
+    doc.text('PGR - Procuradoria-Geral da Rep\u00fablica', pageW / 2, y, { align: 'center' });
+    y += 5;
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text('Republica de Angola', pageW / 2, y, { align: 'center' });
-    y += 7;
+    doc.text('Rep\u00fablica de Angola', pageW / 2, y, { align: 'center' });
+    y += 6;
 
-    doc.setFontSize(13);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(80, 80, 80);
-    doc.text('Ficha do Arguido em Prisao Preventiva', pageW / 2, y, { align: 'center' });
-    y += 10;
+    doc.text('Ficha do Arguido em Pris\u00e3o Preventiva', pageW / 2, y, { align: 'center' });
+    y += 8;
 
     // --- DADOS PESSOAIS ---
     doc.setTextColor(30, 58, 95);
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text('DADOS PESSOAIS', margin, y);
     y += 2;
     doc.setDrawColor(249, 166, 1);
     doc.setLineWidth(0.5);
     doc.line(margin, y, margin + contentW, y);
-    y += 7;
+    y += 5;
 
     const fields1 = [
       ['Processo N.', a.numeroProcesso || '-'],
       ['Nome do Arguido', a.nomeArguido || '-'],
-      ['Filiacao (Pai)', a.filiacaoPai || '-'],
-      ['Filiacao (Mae)', a.filiacaoMae || '-'],
+      ['Filia\u00e7\u00e3o (Pai)', a.filiacaoPai || '-'],
+      ['Filia\u00e7\u00e3o (M\u00e3e)', a.filiacaoMae || '-'],
     ];
 
     const fields2 = [
-      ['Data de Detencao', formatDatePT(a.dataDetencao)],
+      ['Data de Deten\u00e7\u00e3o', formatDatePT(a.dataDetencao)],
       ['Data Remessa JG', formatDatePT(a.dataRemessaJg)],
       ['Data Regresso', formatDatePT(a.dataRegresso)],
       ['Crime', a.crime || '-'],
     ];
 
     doc.setTextColor(60, 60, 60);
-    doc.setFontSize(9);
+    doc.setFontSize(10);
 
     for (const [label, value] of fields1) {
       doc.setFont('helvetica', 'bold');
       doc.text(`${label}:`, margin, y);
       doc.setFont('helvetica', 'normal');
       doc.text(String(value), margin + 45, y);
-      y += 6;
+      y += 5.5;
     }
 
-    y += 3;
+    y += 2;
     for (const [label, value] of fields2) {
       doc.setFont('helvetica', 'bold');
       doc.text(`${label}:`, margin, y);
       doc.setFont('helvetica', 'normal');
       doc.text(String(value), margin + 45, y);
-      y += 6;
+      y += 5.5;
     }
 
-    y += 5;
+    y += 4;
 
     // --- PROCESSO ---
     doc.setTextColor(30, 58, 95);
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('INFORMACOES DO PROCESSO', margin, y);
+    doc.text('INFORMA\u00c7\u00d5ES DO PROCESSO', margin, y);
     y += 2;
     doc.setDrawColor(249, 166, 1);
     doc.line(margin, y, margin + contentW, y);
-    y += 7;
+    y += 5;
 
     const fields3 = [
-      ['Magistrado Responsavel', a.magistradoResponsavel || '-'],
+      ['Magistrado Respons\u00e1vel', a.magistradoResponsavel || '-'],
       ['Medidas Aplicadas', a.medidasAplicadas || '-'],
       ['Data Remessa SIC', formatDatePT(a.dataRemessaSic)],
-      ['Data Prorrogacao', formatDatePT(a.dataProrrogacao)],
-      ['Remessa JG Alteracao', formatDatePT(a.remessaJgAlteracao)],
+      ['Data Prorroga\u00e7\u00e3o', formatDatePT(a.dataProrrogacao)],
+      ['Remessa JG Altera\u00e7\u00e3o', formatDatePT(a.remessaJgAlteracao)],
     ];
 
     doc.setTextColor(60, 60, 60);
-    doc.setFontSize(9);
+    doc.setFontSize(10);
 
     for (const [label, value] of fields3) {
       doc.setFont('helvetica', 'bold');
       doc.text(`${label}:`, margin, y);
       doc.setFont('helvetica', 'normal');
       const valStr = String(value);
-      // Se o texto for muito longo, quebrar em multiplas linhas
       const maxWidth = contentW - 50;
       const lines = doc.splitTextToSize(valStr, maxWidth);
       doc.text(lines, margin + 50, y);
       y += lines.length * 5 + 1;
     }
 
-    y += 5;
+    y += 4;
 
     // --- PRAZOS ---
     doc.setTextColor(30, 58, 95);
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text('CONTROLO DE PRAZOS', margin, y);
     y += 2;
     doc.setDrawColor(249, 166, 1);
     doc.line(margin, y, margin + contentW, y);
-    y += 7;
+    y += 5;
 
     // Status badge color
     const statusColors: Record<string, [number, number, number]> = {
@@ -173,13 +172,13 @@ export async function GET(
     doc.setFillColor(sr, sg, sb);
     doc.roundedRect(margin, y - 4, 40, 7, 2, 2, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     doc.text(statusLabels[a.statusPrazo] || a.statusPrazo.toUpperCase(), margin + 20, y + 1, { align: 'center' });
-    y += 10;
+    y += 8;
 
     doc.setTextColor(60, 60, 60);
-    doc.setFontSize(9);
+    doc.setFontSize(10);
 
     const prazoFields = [
       ['1o Prazo (Fim)', formatDatePT(a.fim1Prazo)],
@@ -194,47 +193,46 @@ export async function GET(
       doc.text(`${label}:`, margin, y);
       doc.setFont('helvetica', 'normal');
       doc.text(String(value), margin + 50, y);
-      y += 6;
+      y += 5.5;
     }
 
-    y += 5;
+    y += 4;
 
-    // --- OBSERVACOES ---
+    // --- OBSERVA\u00c7\u00d5ES ---
     if (a.observacao1 || a.observacao2) {
-      // Verificar se precisa nova pagina
-      if (y > 240) {
+      if (y > 250) {
         doc.addPage();
         y = 20;
       }
 
       doc.setTextColor(30, 58, 95);
-      doc.setFontSize(12);
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text('OBSERVACOES', margin, y);
+      doc.text('OBSERVA\u00c7\u00d5ES', margin, y);
       y += 2;
       doc.setDrawColor(249, 166, 1);
       doc.line(margin, y, margin + contentW, y);
-      y += 7;
+      y += 5;
 
       doc.setTextColor(60, 60, 60);
-      doc.setFontSize(9);
+      doc.setFontSize(10);
 
       if (a.observacao1) {
         doc.setFont('helvetica', 'bold');
-        doc.text('Observacao 1:', margin, y);
+        doc.text('Observa\u00e7\u00e3o 1:', margin, y);
         doc.setFont('helvetica', 'normal');
         const lines = doc.splitTextToSize(String(a.observacao1), contentW - 10);
         doc.text(lines, margin + 5, y + 5);
-        y += lines.length * 5 + 8;
+        y += lines.length * 5 + 6;
       }
 
       if (a.observacao2) {
         doc.setFont('helvetica', 'bold');
-        doc.text('Observacao 2:', margin, y);
+        doc.text('Observa\u00e7\u00e3o 2:', margin, y);
         doc.setFont('helvetica', 'normal');
         const lines = doc.splitTextToSize(String(a.observacao2), contentW - 10);
         doc.text(lines, margin + 5, y + 5);
-        y += lines.length * 5 + 8;
+        y += lines.length * 5 + 6;
       }
     }
 
@@ -245,7 +243,7 @@ export async function GET(
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
-    doc.text('PGR - Procuradoria-Geral da Republica de Angola | Sistema de Gestao de Arguidos', pageW / 2, footerY, { align: 'center' });
+    doc.text('PGR - Procuradoria-Geral da Rep\u00fablica de Angola | Sistema de Gest\u00e3o de Arguidos', pageW / 2, footerY, { align: 'center' });
     doc.text(`Documento gerado em ${new Date().toLocaleDateString('pt-AO')} as ${new Date().toLocaleTimeString('pt-AO')}`, pageW / 2, footerY + 5, { align: 'center' });
     doc.text('Documento confidencial - Uso restrito a pessoal autorizado', pageW / 2, footerY + 10, { align: 'center' });
 
