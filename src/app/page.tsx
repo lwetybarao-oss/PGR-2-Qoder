@@ -1055,7 +1055,6 @@ function ArguidosListView({
   const [crimes, setCrimes] = useState<string[]>([]);
   const [magistrados, setMagistrados] = useState<string[]>([]);
   const [fetchError, setFetchError] = useState('');
-  const [seeding, setSeeding] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { toast } = useToast();
 
@@ -1151,26 +1150,6 @@ function ArguidosListView({
       setSelected([]);
     } else {
       setSelected(arguidos.map(a => a.id));
-    }
-  };
-
-  const handleSeedData = async () => {
-    setSeeding(true);
-    try {
-      const res = await fetch('/api/seed', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        toast({ title: data.message || 'Dados carregados com sucesso!' });
-        fetchArguidos(1, '', '', '', '');
-        fetchFilters();
-      } else {
-        const errData = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
-        toast({ title: errData.error || 'Erro ao carregar dados', variant: 'destructive' });
-      }
-    } catch (err: any) {
-      toast({ title: err.message || 'Erro de conexao', variant: 'destructive' });
-    } finally {
-      setSeeding(false);
     }
   };
 
@@ -1291,23 +1270,15 @@ function ArguidosListView({
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-6">
                       <div className="text-red-500 text-sm mb-3">Erro ao carregar dados: {fetchError}</div>
-                      <div className="flex items-center justify-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => fetchArguidos(page, search, crimeFilter, magistradoFilter, statusFilter)} className="text-xs">
-                          <RefreshCw className="w-3.5 h-3.5 mr-1" /> Tentar Novamente
-                        </Button>
-                        <Button size="sm" onClick={handleSeedData} disabled={seeding} className="bg-[#F9A601] hover:bg-[#FA812A] text-white text-xs">
-                          {seeding ? 'A carregar...' : 'Carregar Dados de Teste'}
-                        </Button>
-                      </div>
+                      <Button variant="outline" size="sm" onClick={() => fetchArguidos(page, search, crimeFilter, magistradoFilter, statusFilter)} className="text-xs">
+                        <RefreshCw className="w-3.5 h-3.5 mr-1" /> Tentar Novamente
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ) : arguidos.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-6">
-                      <div className="text-gray-400 text-sm mb-3">Nenhum arguido encontrado</div>
-                      <Button size="sm" onClick={handleSeedData} disabled={seeding} className="bg-[#F9A601] hover:bg-[#FA812A] text-white text-xs">
-                        {seeding ? 'A carregar...' : 'Carregar Dados de Teste'}
-                      </Button>
+                      <div className="text-gray-400 text-sm">Nenhum arguido encontrado. Adicione um novo arguido usando o botao acima.</div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -2662,15 +2633,6 @@ export default function Home() {
       })
       .finally(() => setAuthChecked(true));
 
-    // Seed data on first load
-    fetch('/api/seed', { method: 'POST' })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          console.log('Seed completed:', data.message);
-        }
-      })
-      .catch(err => console.error('Seed error:', err));
   }, []);
 
   // Fetch alert count periodically
