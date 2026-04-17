@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { diffDays, addDays, todayNormalized, classificarUrgencia } from '@/lib/prazos';
-import { sendAlertaPrazoEmail, sendResumoDiarioEmail } from '@/lib/email';
+import { diffDays, addDays, todayNormalized } from '@/lib/prazos';
+import { sendResumoDiarioEmail } from '@/lib/email';
 
 const ALERT_THRESHOLD_DAYS = 7;
 
@@ -79,27 +79,6 @@ export async function POST(request?: NextRequest) {
               dias: dias1,
               urgencia
             });
-
-            // Enviar email para cada utilizador notificável
-            if (users && users.length > 0) {
-              for (const user of users) {
-                await sendAlertaPrazoEmail({
-                  to: user.email,
-                  arguido: {
-                    nome: arguido.nome_arguido,
-                    processo: arguido.numero_processo,
-                    crime: arguido.crime,
-                    magistrado: arguido.magistrado_responsavel,
-                  },
-                  prazo: {
-                    tipo: '1º Prazo',
-                    dataFim: formatDatePt(fim1),
-                    diasRestantes: dias1,
-                    urgencia,
-                  },
-                });
-              }
-            }
           }
         }
       }
@@ -151,27 +130,6 @@ export async function POST(request?: NextRequest) {
                 dias: dias2,
                 urgencia
               });
-
-              // Enviar email
-              if (users && users.length > 0) {
-                for (const user of users) {
-                  await sendAlertaPrazoEmail({
-                    to: user.email,
-                    arguido: {
-                      nome: arguido.nome_arguido,
-                      processo: arguido.numero_processo,
-                      crime: arguido.crime,
-                      magistrado: arguido.magistrado_responsavel,
-                    },
-                    prazo: {
-                      tipo: '2º Prazo',
-                      dataFim: formatDatePt(fim2),
-                      diasRestantes: dias2,
-                      urgencia,
-                    },
-                  });
-                }
-              }
             }
           }
         }
@@ -182,29 +140,33 @@ export async function POST(request?: NextRequest) {
     const prioridade: Record<string, number> = { vencido: 0, critico: 1, alerta: 2 };
     detalhes.sort((a, b) => (prioridade[a.urgencia] || 3) - (prioridade[b.urgencia] || 3) || a.dias - b.dias);
 
-    // Enviar resumo diário ao primeiro admin
-    if (users && users.length > 0) {
-      const admin = users.find((u: any) => u.role === 'admin') || users[0];
-      let prazosVencidos = 0;
-      let alertasCriticos = 0;
-      for (const d of detalhes) {
-        if (d.urgencia === 'vencido') prazosVencidos++;
-        if (d.urgencia === 'critico') alertasCriticos++;
+    // Contadores
+    let prazosVencidos = 0;
+    let alertasCriticos = 0;
+    for (const d of detalhes) {
+      if (d.urgencia === 'vencido') prazosVencidos++;
+      if (d.urgencia === 'critico') alertasCriticos++;
+    }
+
+    // Enviar UM ÚNICO email de resumo para cada utilizador com notificações activas
+    if (users && users.length > 0 && detalhes.length > 0) {
+      for (const user of users) {
+        await sendResumoDiarioEmail({
+          to: user.email,
+          totalArguidos: arguidos?.length || 0,
+          prazosVencidos,
+          alertasCriticos,
+          detalhes,
+        });
       }
-      await sendResumoDiarioEmail({
-        to: admin.email,
-        totalArguidos: arguidos?.length || 0,
-        prazosVencidos,
-        alertasCriticos,
-        detalhes,
-      });
     }
 
     return NextResponse.json({
       success: true,
-      message: `Verificação concluída. ${alertasCriados} novo(s) alerta(s) criado(s). Email enviado.`,
+      message: `Verificação concluída. ${alertasCriados} novo(s) alerta(s) criado(s). ${users && users.length > 0 && detalhes.length > 0 ? '1 email de resumo enviado.' : 'Nenhum email enviado (sem alertas novos ou sem destinatários).'}`,
       alertasCriados,
       totalArguidosVerificados: arguidos?.length || 0,
+      totalEmailsEnviados: (users && users.length > 0 && detalhes.length > 0) ? users.length : 0,
       detalhes,
     });
   } catch (error: any) {
