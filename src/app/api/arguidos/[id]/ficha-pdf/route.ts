@@ -40,9 +40,9 @@ export async function GET(
     // --- CABECALHO (sem cor de fundo) ---
     let y = 15;
 
-    // Insignia PGR (base64 embutido) - imagem 367x415, aspect ratio ~0.88
-    const insigniaW = 28;
-    const insigniaH = 32;
+    // Insignia PGR (base64 embutido) - imagem 367x415, aspect ratio 0.884
+    const insigniaW = 30;
+    const insigniaH = 34;
     doc.addImage(INSIGNIA_B64, 'PNG', pageW / 2 - insigniaW / 2, y, insigniaW, insigniaH);
     y += insigniaH + 4;
 
