@@ -64,8 +64,29 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ data, pagination: { page, limit, total, totalPages } });
     } else {
-      // Contar total
-      const { count, error: countError } = await query.select('*', { count: 'exact', head: true });
+      // Contar total com os mesmos filtros (query separada)
+      let countQuery = supabase
+        .from('arguidos')
+        .select('*', { count: 'exact', head: true })
+        .eq('ativo', true);
+
+      if (q) {
+        countQuery = countQuery.or(`nome_arguido.ilike.%${q}%,numero_processo.ilike.%${q}%,crime.ilike.%${q}%,magistrado_responsavel.ilike.%${q}%`);
+      }
+      if (crime) {
+        countQuery = countQuery.ilike('crime', `%${crime}%`);
+      }
+      if (magistrado) {
+        countQuery = countQuery.ilike('magistrado_responsavel', `%${magistrado}%`);
+      }
+      if (dataInicio) {
+        countQuery = countQuery.gte('data_detencao', dataInicio);
+      }
+      if (dataFim) {
+        countQuery = countQuery.lte('data_detencao', dataFim);
+      }
+
+      const { count, error: countError } = await countQuery;
       if (countError) throw countError;
 
       const total = count || 0;
