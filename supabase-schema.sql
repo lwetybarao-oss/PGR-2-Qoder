@@ -172,6 +172,7 @@ RETURNS TABLE(
   urgencia VARCHAR(20)
 ) AS $$
 DECLARE
+  arg_rec RECORD;
   v_today DATE := CURRENT_DATE;
   v_fim DATE;
   v_dias INTEGER;
